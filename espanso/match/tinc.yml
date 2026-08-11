@@ -4,55 +4,45 @@
 # ============================================================
 #
 #  SYNTAX:  [your text here]command
-#  Square brackets wrap the prompt/text, suffix follows directly.
-#  All triggers INSTANTLY show "Bas ittu sa time aur..." while processing.
+#  All async triggers instantly place "Bas ittu sa time aur..."
 #
 #  ── AI CORE ─────────────────────────────────────────────────
-#    [prompt]ai    Open interactive Spotlight AI chat window
-#    [prompt]ad    AI answer typed directly into active window
-#    [prompt]ac    Shell command only, typed directly
-#    [prompt]av    Clipboard text as context, prompt as instruction
+#    [prompt]ai    Direct answer, zero system prompt
+#    [prompt]av    ai + clipboard as context  (i→v)
+#    [prompt]ad    Short, precise answer (1-2 lines max)
 #
 #  ── WRITING ─────────────────────────────────────────────────
-#    [text]fix     Fix spelling & minor grammar, preserve tone
-#    [text]tldr    1-2 sentence TL;DR summary
+#    [text]fix     Fix spelling/grammar, preserve tone exactly
+#    [text]tldr    1-2 sentence TL;DR
 #
-#  ── CODE (output typed directly, no clipboard) ──────────────
-#    [prompt]ref   Refactor + comment code
-#    [prompt]py    Python code only
-#    [prompt]cp    C++ code only
-#    [prompt]sh    Bash script only
+#  ── CODE ────────────────────────────────────────────────────
+#    [prompt]ref   Refactor + comment
+#    [prompt]py    Python only
+#    [prompt]cp    C++ only
+#    [prompt]sh    Bash only
 #    [prompt]htm   HTML only
-#    [prompt]csv   CSV data only
-#    [prompt]json  JSON data only
+#    [prompt]csv   CSV only
+#    [prompt]json  JSON only
 #
-#  ── CLIPBOARD VARIANTS ──────────────────────────────────────
-#  Replace the LAST character of any suffix with 'v'.
-#  Works with empty brackets (instruction already implied).
-#  Also works with an optional instruction: [make formal]fiv
-#
-#    []fiv    Fix clipboard text spelling/grammar
-#    []tldv   TL;DR of clipboard text
+#  ── CLIPBOARD VARIANTS (replace last char with 'v') ─────────
+#    []fiv    Fix clipboard text
+#    []tldv   TL;DR clipboard text
 #    []rev    Refactor clipboard code
-#    []pv     Convert clipboard text to Python
-#    []cv     Convert clipboard text to C++
-#    []sv     Convert clipboard text to Bash
-#    []htv    Convert clipboard text to HTML
-#    []jsov   Convert clipboard text to JSON
-#    []csj    Convert clipboard text to CSV
-#
-#    [prompt]av  is already the clipboard variant of ad
-#    [prompt]av  can also carry an optional instruction
+#    []pv     Clipboard → Python
+#    []cv     Clipboard → C++
+#    []sv     Clipboard → Bash
+#    []htv    Clipboard → HTML
+#    []jsov   Clipboard → JSON
+#    []csj    Clipboard → CSV
+#    []av     Clipboard as context for ai answer
 #
 #  ── TRANSLATION ─────────────────────────────────────────────
-#    [text]hi    Full Hindi translation
-#    [text]hd    Romanized → Devanagari transliteration
-#    [text]hu    Hinglish → Hindi script
+#    [text]hi    Hindi translation
+#    [text]hd    Romanized → Devanagari
+#    [text]hu    Hinglish → Hindi
 #
 #  ── MISC ────────────────────────────────────────────────────
-#    :today  → current date
-#    :time   → current time
-#    :myip   → your public IP
+#    :today  :time  :myip
 #
 # ============================================================
 
@@ -86,7 +76,7 @@ matches:
           cmd: "curl -s ifconfig.me"
 
   # ═══════════════════════════════════════════════════════════
-  #  TRANSLATION  ─  [text]hi / [text]hd / [text]hu
+  #  TRANSLATION
   # ═══════════════════════════════════════════════════════════
 
   - regex: "\\[(?P<text>[^\\]]+)\\]hi$"
@@ -117,6 +107,7 @@ matches:
   #  AI CORE
   # ═══════════════════════════════════════════════════════════
 
+  # ai — direct answer, no system prompt
   - regex: "\\[(?P<prompt>[^\\]]*)\\]ai$"
     replace: "{{out}}"
     vars:
@@ -125,23 +116,7 @@ matches:
         params:
           cmd: "ESPANSO_MODE=ai ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]ad$"
-    replace: "{{out}}"
-    vars:
-      - name: out
-        type: shell
-        params:
-          cmd: "ESPANSO_MODE=ad ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
-
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]ac$"
-    replace: "{{out}}"
-    vars:
-      - name: out
-        type: shell
-        params:
-          cmd: "ESPANSO_MODE=ac ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
-
-  # av = ad with clipboard as context (last char d→v)
+  # av — ai + clipboard context  (i→v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]av$"
     replace: "{{out}}"
     vars:
@@ -149,6 +124,15 @@ matches:
         type: shell
         params:
           cmd: "ESPANSO_MODE=av ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  # ad — short, precise answer (1-2 lines)
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]ad$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=ad ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # ═══════════════════════════════════════════════════════════
   #  WRITING
@@ -231,12 +215,9 @@ matches:
           cmd: "ESPANSO_MODE=json ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # ═══════════════════════════════════════════════════════════
-  #  CLIPBOARD VARIANTS
-  #  Replace LAST CHAR of suffix with 'v' to use clipboard as input.
-  #  Empty brackets OK: []fiv  or  [extra instruction]fiv
+  #  CLIPBOARD VARIANTS — replace last char of suffix with 'v'
   # ═══════════════════════════════════════════════════════════
 
-  # fiv  = fix with clipboard  (fix → fi + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]fiv$"
     replace: "{{out}}"
     vars:
@@ -245,7 +226,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=fiv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # tldv = tldr with clipboard (tldr → tld + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]tldv$"
     replace: "{{out}}"
     vars:
@@ -254,7 +234,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=tldv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # rev  = ref with clipboard  (ref → re + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]rev$"
     replace: "{{out}}"
     vars:
@@ -263,7 +242,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=rev ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # pv   = py with clipboard   (py → p + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]pv$"
     replace: "{{out}}"
     vars:
@@ -272,7 +250,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=pv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # cv   = cp with clipboard   (cp → c + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]cv$"
     replace: "{{out}}"
     vars:
@@ -281,7 +258,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=cv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # sv   = sh with clipboard   (sh → s + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]sv$"
     replace: "{{out}}"
     vars:
@@ -290,7 +266,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=sv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # htv  = htm with clipboard  (htm → ht + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]htv$"
     replace: "{{out}}"
     vars:
@@ -299,7 +274,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=htv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # jsov = json with clipboard (json → jso + v)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]jsov$"
     replace: "{{out}}"
     vars:
@@ -308,7 +282,6 @@ matches:
         params:
           cmd: "ESPANSO_MODE=jsov ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # csj  = csv with clipboard  (csv ends in v already, use csj as variant)
   - regex: "\\[(?P<prompt>[^\\]]*)\\]csj$"
     replace: "{{out}}"
     vars:
