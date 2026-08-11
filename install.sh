@@ -103,8 +103,15 @@ wget -q -O "$ESPANSO_CFG/scripts/ai_gui.py"           "$REPO_URL/espanso/scripts
 wget -q -O "$ESPANSO_CFG/scripts/ai_router.py"        "$REPO_URL/espanso/scripts/ai_router.py"
 wget -q -O "$ESPANSO_CFG/scripts/tinc_client.py"      "$REPO_URL/espanso/scripts/tinc_client.py"
 
-chmod +x "$ESPANSO_CFG/scripts/"*.py
-success "All scripts deployed to Espanso directory."
+# Neutralize Espanso's default base.yml which would otherwise conflict with tinc.yml.
+# Espanso auto-generates this file with example triggers; keeping it causes every
+# pattern to match twice, triggering a disambiguation popup on every keystroke.
+cat > "$ESPANSO_CFG/match/base.yml" << 'BASEYML'
+# Tinc: This file intentionally left with no matches.
+# All triggers are defined in tinc.yml
+matches: []
+BASEYML
+success "base.yml neutralized (tinc.yml is the sole trigger file)."
 
 info "Setting up Translation Daemon as systemd user service…"
 mkdir -p "$HOME/.config/systemd/user"
