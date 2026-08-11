@@ -3,8 +3,16 @@
 #  Author: Utkarsh Yadav
 # ============================================================
 
-# Backend: Use Wayland native backend
-backend: "wayland"
+# Backend: Use X11 backend (via XWayland).
+# WHY X11 NOT WAYLAND:
+# Espanso's Wayland backend uses the xdg-desktop-portal RemoteDesktop/EIS protocol
+# to inject keystrokes. GNOME shows a security permission popup every session
+# ("Allow remote interaction") with an intimidating top-bar notification icon.
+# There is no stable way to permanently auto-allow this for non-flatpak apps.
+# Switching to the X11 backend uses XWayland's XTest extension instead,
+# which requires zero portals, zero popups, and zero permission dialogs.
+# XWayland is always running alongside Wayland on Ubuntu GNOME desktops.
+backend: "xdotool"
 
 # Keyboard layout
 keyboard_layout:
