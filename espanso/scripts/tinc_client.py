@@ -36,7 +36,7 @@ def _make_request(messages: list, stream: bool):
         "messages": messages,
         "temperature": 0.5,
         "stream": stream,
-        "max_tokens": 4096,
+        "max_tokens": 1024,   # conservative: preserves daily free-tier quota
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -53,13 +53,28 @@ def _make_request(messages: list, stream: bool):
 
 
 def _classify_http_error(e: urllib.error.HTTPError) -> str:
+    """Parse Groq's error body for a meaningful message."""
+    import re
+    try:
+        body = json.loads(e.read().decode("utf-8"))
+        api_msg = body.get("error", {}).get("message", "")
+    except Exception:
+        api_msg = ""
+
     if e.code == 401:
         return "[Tinc Error: Unauthorized — check your API key in ~/.config/tinc/config.json]"
+
     if e.code == 429:
-        return "[Tinc Error: Rate limit exceeded — wait a moment and retry]"
+        # Extract 'try again in Xm Ys' from Groq's message
+        m = re.search(r"try again in ([\d\w. ]+?)(?:\.|$)", api_msg, re.IGNORECASE)
+        wait = m.group(1).strip() if m else "a moment"
+        # Check if it's a daily limit (TPD) or per-minute limit (TPM)
+        kind = "daily token limit" if "per day" in api_msg or "TPD" in api_msg else "rate limit"
+        return f"[Tinc: {kind} hit — retry in {wait}]"
+
     if e.code >= 500:
         return f"[Tinc Error: Groq server error ({e.code})]"
-    return f"[Tinc Error: HTTP {e.code}]"
+    return f"[Tinc Error: HTTP {e.code} — {api_msg[:80]}]"
 
 
 # ─── Public API ───────────────────────────────────────────────────────────────
