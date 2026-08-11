@@ -160,13 +160,13 @@ def erase_loading_text(win_id: str) -> None:
 
 
 def type_text(text: str, win_id: str) -> None:
-    """Type text at ~1000 cps via wtype, fallback to paste."""
+    """Type text at ~400 cps (2.5ms/char) via wtype --delay 3, fallback to paste."""
     focus_window(win_id)
     try:
         r = subprocess.run(
-            ["wtype", "--delay", "1", "--", text],
+            ["wtype", "--delay", "3", "--", text],
             capture_output=True,
-            timeout=max(15, len(text) // 50 + 5),
+            timeout=max(20, len(text) // 30 + 5),
         )
         if r.returncode == 0:
             return
@@ -208,7 +208,8 @@ def async_worker(base_mode: str, prompt: str, prev_win_id: str, use_clipboard: b
     result = tinc_client.chat(msgs)          # always blocking, always str
     result = (result or "").strip()
 
-    if base_mode == "ac":
+    # Strip code fences from ac AND all code-output modes
+    if base_mode in {"ac"} | TYPING_MODES:
         result = strip_code_fences(result)
 
     # Always erase the loading text first
