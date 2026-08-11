@@ -188,48 +188,24 @@ def copy_to_clipboard(text: str) -> None:
             pass
 
 
-def inject_instant(text: str, win_id: str) -> None:
+def inject(text: str, win_id: str) -> None:
     """
-    For ai/ad/av: copy to clipboard and paste.
-    Clipboard preserves ALL formatting including newlines perfectly.
-    xdotool type sends linefeed (0xff0a) not Return (0xff0d) for \n —
-    which most GUI text fields ignore. Clipboard paste is the only
-    reliable way to inject multi-line text.
+    Universal output injection via clipboard paste — used for ALL modes.
+
+    WHY CLIPBOARD ONLY (the native Espanso approach):
+    - xdotool type maps \\n to linefeed (0xff0a), not Return (0xff0d).
+      GUI text fields ignore linefeed → no line breaks, broken indentation.
+    - 'xdotool key Return' is DANGEROUS: it auto-submits forms, runs
+      terminal commands, sends chat messages mid-output.
+    - Espanso itself uses this exact approach with force_clipboard: true.
+      Clipboard paste (Ctrl+V) is the only safe, correct injection method:
+        * Newlines land as real line breaks
+        * All indentation (tabs + spaces) is byte-perfect
+        * No dangerous keys, no encoding confusion
+        * Consistent across every app
     """
     copy_to_clipboard(text)
     paste_clipboard(win_id)
-
-
-def inject_typed(text: str, win_id: str, delay_ms: int = TYPING_DELAY_MS) -> None:
-    """
-    For typing modes: type char-by-char at 2000 CPM with explicit Return keys.
-    Splits on \n and uses xdotool key Return between lines — the only
-    reliable way to get actual Return keystrokes instead of linefeed.
-    """
-    focus_window(win_id)
-    lines = text.split("\n")
-    for i, line in enumerate(lines):
-        if line:
-            try:
-                subprocess.run(
-                    ["xdotool", "type", "--clearmodifiers",
-                     "--delay", str(delay_ms), "--", line],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    timeout=max(30, len(line) // 2 + 10)
-                )
-            except Exception:
-                pass
-        if i < len(lines) - 1:
-            # Explicit Return key — not \n which xdotool maps to linefeed
-            try:
-                subprocess.run(
-                    ["xdotool", "key", "--clearmodifiers", "Return"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3
-                )
-            except Exception:
-                pass
-            if delay_ms > 1:
-                time.sleep(delay_ms / 1000.0)
 
 
 def erase_chars(n: int, win_id: str) -> None:
@@ -285,11 +261,8 @@ def async_worker(base_mode: str, prompt: str, prev_win_id: str, use_clipboard: b
     if not result:
         return
 
-    # Step 3: Inject result
-    if base_mode in TYPING_MODES:
-        inject_typed(result, prev_win_id)
-    else:
-        inject_instant(result, prev_win_id)
+    # Step 3: Inject result via clipboard (safe, correct for all modes)
+    inject(result, prev_win_id)
 
 
 # ─── Main router ─────────────────────────────────────────────────────────────
