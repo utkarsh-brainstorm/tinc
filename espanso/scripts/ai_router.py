@@ -43,8 +43,8 @@ import tinc_client
 LOADING_TEXT = "Bas ittu sa time aur..."
 LOADING_LEN  = len(LOADING_TEXT)   # 23
 
-# Typing speed: 2000 CPM = 30ms per char
-TYPING_DELAY_MS = 30
+# Typing speed: 2000 CPS = 30ms per char
+TYPING_DELAY_MS = 0.5
 
 # ─── Suffix → (base_mode, use_clipboard) ─────────────────────────────────────
 SUFFIX_MAP = {
@@ -144,33 +144,6 @@ def focus_window(win_id: str) -> None:
             pass
 
 
-def xdo_type(text: str, win_id: str, delay_ms: int = 1) -> bool:
-    """
-    Inject text via xdotool type.
-    - Handles newlines natively (\\n → Return key).
-    - delay_ms=1: near-instant for ai/ad/av.
-    - delay_ms=30: 2000 CPM for fix/tldr/code modes.
-    Returns True on success.
-    """
-    focus_window(win_id)
-    cmd = [
-        "xdotool", "type",
-        "--clearmodifiers",
-        "--delay", str(delay_ms),
-        "--", text
-    ]
-    try:
-        r = subprocess.run(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=max(30, len(text) // 2 + 10),
-        )
-        return r.returncode == 0
-    except Exception:
-        return False
-
-
 def xdo_key(key: str, win_id: str, repeat: int = 1) -> None:
     """Send a key press via xdotool key."""
     focus_window(win_id)
@@ -182,6 +155,81 @@ def xdo_key(key: str, win_id: str, repeat: int = 1) -> None:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
     except Exception:
         pass
+
+
+def paste_clipboard(win_id: str) -> None:
+    """Send Ctrl+V to paste clipboard content."""
+    focus_window(win_id)
+    try:
+        subprocess.run(
+            ["xdotool", "key", "--clearmodifiers", "ctrl+v"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5
+        )
+    except Exception:
+        pass
+
+
+def copy_to_clipboard(text: str) -> None:
+    """Copy text to clipboard via wl-copy."""
+    try:
+        proc = subprocess.Popen(
+            ["wl-copy"],
+            stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        proc.communicate(input=text.encode("utf-8"), timeout=5)
+    except Exception:
+        try:
+            proc = subprocess.Popen(
+                ["xclip", "-selection", "clipboard"],
+                stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+            proc.communicate(input=text.encode("utf-8"), timeout=5)
+        except Exception:
+            pass
+
+
+def inject_instant(text: str, win_id: str) -> None:
+    """
+    For ai/ad/av: copy to clipboard and paste.
+    Clipboard preserves ALL formatting including newlines perfectly.
+    xdotool type sends linefeed (0xff0a) not Return (0xff0d) for \n —
+    which most GUI text fields ignore. Clipboard paste is the only
+    reliable way to inject multi-line text.
+    """
+    copy_to_clipboard(text)
+    paste_clipboard(win_id)
+
+
+def inject_typed(text: str, win_id: str, delay_ms: int = TYPING_DELAY_MS) -> None:
+    """
+    For typing modes: type char-by-char at 2000 CPM with explicit Return keys.
+    Splits on \n and uses xdotool key Return between lines — the only
+    reliable way to get actual Return keystrokes instead of linefeed.
+    """
+    focus_window(win_id)
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if line:
+            try:
+                subprocess.run(
+                    ["xdotool", "type", "--clearmodifiers",
+                     "--delay", str(delay_ms), "--", line],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    timeout=max(30, len(line) // 2 + 10)
+                )
+            except Exception:
+                pass
+        if i < len(lines) - 1:
+            # Explicit Return key — not \n which xdotool maps to linefeed
+            try:
+                subprocess.run(
+                    ["xdotool", "key", "--clearmodifiers", "Return"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3
+                )
+            except Exception:
+                pass
+            if delay_ms > 1:
+                time.sleep(delay_ms / 1000.0)
 
 
 def erase_chars(n: int, win_id: str) -> None:
@@ -218,14 +266,12 @@ def build_messages(base_mode: str, prompt: str, clipboard: str = "") -> list:
 # ─── Async worker ─────────────────────────────────────────────────────────────
 
 def async_worker(base_mode: str, prompt: str, prev_win_id: str, use_clipboard: bool) -> None:
-    # Step 1: Replace placeholder spaces with loading text
-    time.sleep(0.1)   # let Espanso finish its own injection first
-    move_cursor_left(LOADING_LEN, prev_win_id)
-    xdo_type(LOADING_TEXT, prev_win_id, delay_ms=1)
-
-    # Step 2: API call
-    clipboard = get_clipboard() if use_clipboard else ""
-    msgs = build_messages(base_mode, prompt, clipboard)
+    """
+    Erases loading text, calls API, injects result.
+    """
+    # Step 1: API call
+    clipboard_text = get_clipboard() if use_clipboard else ""
+    msgs = build_messages(base_mode, prompt, clipboard_text)
     result = tinc_client.chat(msgs)
     result = (result or "").strip()
 
@@ -233,14 +279,17 @@ def async_worker(base_mode: str, prompt: str, prev_win_id: str, use_clipboard: b
     if base_mode in TYPING_MODES or base_mode == "ad":
         result = strip_code_fences(result)
 
-    # Step 3: Erase loading text, inject result
+    # Step 2: Erase loading text
     erase_chars(LOADING_LEN, prev_win_id)
 
     if not result:
         return
 
-    delay = TYPING_DELAY_MS if base_mode in TYPING_MODES else 1
-    xdo_type(result, prev_win_id, delay_ms=delay)
+    # Step 3: Inject result
+    if base_mode in TYPING_MODES:
+        inject_typed(result, prev_win_id)
+    else:
+        inject_instant(result, prev_win_id)
 
 
 # ─── Main router ─────────────────────────────────────────────────────────────
@@ -261,8 +310,8 @@ def route(mode: str, prompt: str) -> None:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    # Output placeholder spaces; background worker overwrites with loading text
-    print(" " * LOADING_LEN, end="")
+    # Print loading text directly — background worker will backspace it and type result
+    print(LOADING_TEXT, end="")
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
