@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-tinc_client.py — Zero-dependency Groq streaming client for Tinc.
+tinc_client.py — Zero-dependency Groq API client for Tinc.
 Reads the API key and model from ~/.config/tinc/config.json.
 """
 import os
@@ -22,27 +22,15 @@ def load_config() -> dict:
         return json.load(f)
 
 
-def run_chat(messages: list, stream: bool = False):
-    """
-    Sends a chat request to Groq API.
-    If stream=True, yields text chunks. Otherwise returns the full response string.
-    On any error, returns/yields a descriptive [Tinc Error: ...] message.
-    """
+def _make_request(messages: list, stream: bool):
+    """Low level: returns the urllib response object."""
     cfg = load_config()
     api_key = cfg.get("api_key", "").strip()
     model   = cfg.get("model", "llama-3.3-70b-versatile")
 
     if not api_key:
-        msg = "[Tinc Error: API key not set. Run install.sh or edit ~/.config/tinc/config.json]"
-        if stream:
-            yield msg
-            return
-        return msg
+        raise ValueError("API key not set. Edit ~/.config/tinc/config.json")
 
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
     payload = json.dumps({
         "model": model,
         "messages": messages,
@@ -51,68 +39,88 @@ def run_chat(messages: list, stream: bool = False):
         "max_tokens": 4096,
     }).encode("utf-8")
 
-    url = "https://api.groq.com/openai/v1/chat/completions"
-    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "tinc/1.0",
+        },
+        method="POST",
+    )
+    return urllib.request.urlopen(req, timeout=30)
 
+
+def _classify_http_error(e: urllib.error.HTTPError) -> str:
+    if e.code == 401:
+        return "[Tinc Error: Unauthorized — check your API key in ~/.config/tinc/config.json]"
+    if e.code == 429:
+        return "[Tinc Error: Rate limit exceeded — wait a moment and retry]"
+    if e.code >= 500:
+        return f"[Tinc Error: Groq server error ({e.code})]"
+    return f"[Tinc Error: HTTP {e.code}]"
+
+
+# ─── Public API ───────────────────────────────────────────────────────────────
+
+def chat(messages: list) -> str:
+    """Blocking, returns the full response as a string."""
     try:
-        if stream:
-            with urllib.request.urlopen(req, timeout=20) as resp:
-                for raw_line in resp:
-                    line = raw_line.decode("utf-8").strip()
-                    if not line or not line.startswith("data: "):
-                        continue
-                    data = line[6:]
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        content = chunk["choices"][0].get("delta", {}).get("content", "")
-                        if content:
-                            yield content
-                    except (json.JSONDecodeError, KeyError):
-                        continue
-        else:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                body = json.loads(resp.read().decode("utf-8"))
-                return body["choices"][0]["message"]["content"]
-
+        with _make_request(messages, stream=False) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            return body["choices"][0]["message"]["content"]
     except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        if e.code == 401:
-            msg = "[Tinc Error: Unauthorized — Check your API key in ~/.config/tinc/config.json]"
-        elif e.code == 429:
-            msg = "[Tinc Error: Rate limit exceeded — Wait a moment and try again]"
-        elif e.code >= 500:
-            msg = f"[Tinc Error: Groq server error ({e.code})]"
-        else:
-            msg = f"[Tinc Error: HTTP {e.code}]"
-        if stream:
-            yield msg
-        else:
-            return msg
-
+        return _classify_http_error(e)
+    except ValueError as e:
+        return f"[Tinc Error: {e}]"
     except TimeoutError:
-        msg = "[Tinc Error: Timeout — AI took too long to respond]"
-        if stream:
-            yield msg
-        else:
-            return msg
-
+        return "[Tinc Error: Timeout — AI took too long to respond]"
     except Exception as e:
-        msg = f"[Tinc Error: {type(e).__name__}: {e}]"
-        if stream:
-            yield msg
-        else:
-            return msg
+        return f"[Tinc Error: {type(e).__name__}: {e}]"
+
+
+def stream_chat(messages: list):
+    """Generator: yields text chunks one by one."""
+    try:
+        with _make_request(messages, stream=True) as resp:
+            for raw_line in resp:
+                line = raw_line.decode("utf-8").strip()
+                if not line.startswith("data: "):
+                    continue
+                data = line[6:]
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data)
+                    content = chunk["choices"][0].get("delta", {}).get("content", "")
+                    if content:
+                        yield content
+                except (json.JSONDecodeError, KeyError):
+                    continue
+    except urllib.error.HTTPError as e:
+        yield _classify_http_error(e)
+    except ValueError as e:
+        yield f"[Tinc Error: {e}]"
+    except TimeoutError:
+        yield "[Tinc Error: Timeout — AI took too long to respond]"
+    except Exception as e:
+        yield f"[Tinc Error: {type(e).__name__}: {e}]"
+
+
+# Keep backwards-compat shim used by ai_gui.py (which calls run_chat with stream=True)
+def run_chat(messages: list, stream: bool = False):
+    if stream:
+        return stream_chat(messages)
+    return chat(messages)
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        prompt = sys.argv[1]
-        msgs = [{"role": "user", "content": prompt}]
+        msgs = [{"role": "user", "content": sys.argv[1]}]
         if "--stream" in sys.argv:
-            for c in run_chat(msgs, stream=True):
+            for c in stream_chat(msgs):
                 print(c, end="", flush=True)
             print()
         else:
-            print(run_chat(msgs, stream=False))
+            print(chat(msgs))

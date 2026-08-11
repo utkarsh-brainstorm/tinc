@@ -2,11 +2,11 @@
 """
 ai_router.py — Routes all Espanso AI triggers for Tinc.
 
-Modes (via ESPANSO_MODE env var or --async-paste CLI flag):
+Modes (via ESPANSO_MODE env var or --async-worker CLI flag):
   ai    → Open Spotlight GUI (pywebview)
-  ac    → Shell command only (async, paste)
-  ad    → Full AI answer (async, paste)
-  av    → AI with clipboard as context (async, paste)
+  ac    → Shell command only (async, paste via clipboard)
+  ad    → Full AI answer (async, paste via clipboard)
+  av    → AI with clipboard as context (async, paste via clipboard)
   fix   → Spelling/grammar fix preserving tone (async, typed)
   tldr  → TL;DR 1-2 sentence summary (async, typed)
   ref   → Refactor + comment code (async, typed)
@@ -24,14 +24,15 @@ import re
 import subprocess
 import time
 
-# Ensure we can always import tinc_client from the same directory
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tinc_client
 
 AI_GUI_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai_gui.py")
 GUI_PYTHON    = "/usr/bin/python3"
 
-# ─── System prompts for each mode ────────────────────────────────────────────
+LOADING_TEXT = "Bas ittu sa time aur..."
+
+# ─── System prompts ───────────────────────────────────────────────────────────
 SYSTEM_PROMPTS = {
     "ac": (
         "You output ONLY raw shell commands. No explanation. No markdown. "
@@ -63,34 +64,32 @@ SYSTEM_PROMPTS = {
     "json": "Output ONLY valid JSON. No prose. No markdown.",
 }
 
-# Modes where we type output char-by-char for a streaming feel
+# Modes that type output char-by-char for a streaming feel
 TYPING_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json"}
-
-# Modes that use clipboard content as the primary input
-CLIPBOARD_MODES = {m + "v" for m in ["ad", "fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ac"]}
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def get_active_window_id() -> str:
-    """Get the currently focused X11 window ID."""
     try:
-        result = subprocess.run(
-            ["bash", "-c",
-             "xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | grep -o '0x[0-9a-f]*' | head -1"],
+        r = subprocess.run(
+            ["xprop", "-root", "_NET_ACTIVE_WINDOW"],
             capture_output=True, text=True, timeout=2
         )
-        for line in result.stdout.strip().splitlines():
-            if line.startswith("0x") and len(line) > 4:
-                return line.strip()
+        m = re.search(r"0x[0-9a-f]+", r.stdout)
+        if m:
+            return m.group(0)
     except Exception:
         pass
     return ""
 
 
 def get_clipboard() -> str:
-    """Read current clipboard content."""
-    for cmd in [["wl-paste", "--no-newline"], ["xclip", "-selection", "clipboard", "-o"], ["xsel", "--clipboard", "--output"]]:
+    for cmd in [
+        ["wl-paste", "--no-newline"],
+        ["xclip", "-selection", "clipboard", "-o"],
+        ["xsel", "--clipboard", "--output"],
+    ]:
         try:
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
             if r.returncode == 0 and r.stdout.strip():
@@ -101,76 +100,81 @@ def get_clipboard() -> str:
 
 
 def copy_to_clipboard(text: str) -> None:
-    """Copy text to clipboard."""
     for cmd in [["wl-copy"], ["xclip", "-selection", "clipboard"]]:
         try:
-            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-            proc.communicate(input=text.encode("utf-8"))
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            proc.communicate(input=text.encode("utf-8"), timeout=5)
             return
-        except FileNotFoundError:
+        except Exception:
             continue
 
 
 def focus_window(win_id: str) -> None:
     if win_id:
         try:
-            subprocess.run(["wmctrl", "-ia", win_id], timeout=2)
+            subprocess.run(["wmctrl", "-ia", win_id],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
             time.sleep(0.15)
         except Exception:
             pass
 
 
 def paste_clipboard(win_id: str) -> None:
-    """Paste clipboard to the focused window using wtype → xdotool fallback."""
     focus_window(win_id)
     try:
-        res = subprocess.run(["wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl"],
-                             capture_output=True, timeout=3)
-        if res.returncode == 0:
+        r = subprocess.run(["wtype", "-M", "ctrl", "-k", "v", "-m", "ctrl"],
+                           capture_output=True, timeout=3)
+        if r.returncode == 0:
             return
     except Exception:
         pass
     try:
-        subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+v"], timeout=3)
+        subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+v"],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3)
     except Exception:
         pass
+
+
+def erase_loading_text(win_id: str) -> None:
+    """Backspace over LOADING_TEXT character by character."""
+    focus_window(win_id)
+    n = len(LOADING_TEXT)
+    # Use xdotool to send backspaces — more reliable than wtype for bulk backspace
+    try:
+        subprocess.run(
+            ["xdotool", "key", "--clearmodifiers", "--repeat", str(n), "BackSpace"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5
+        )
+        return
+    except Exception:
+        pass
+    # Fallback: wtype repeated backspace
+    for _ in range(n):
+        try:
+            subprocess.run(["wtype", "-k", "BackSpace"],
+                           capture_output=True, timeout=2)
+        except Exception:
+            pass
+        time.sleep(0.01)
 
 
 def type_text(text: str, win_id: str) -> None:
-    """
-    Type text character-by-character at ~1000 cps using wtype --delay 1.
-    Falls back to paste on failure.
-    """
+    """Type text at ~1000 cps via wtype, fallback to paste."""
     focus_window(win_id)
     try:
-        res = subprocess.run(
+        r = subprocess.run(
             ["wtype", "--delay", "1", "--", text],
-            capture_output=True, timeout=max(10, len(text) // 100 + 5)
+            capture_output=True,
+            timeout=max(15, len(text) // 50 + 5),
         )
-        if res.returncode == 0:
+        if r.returncode == 0:
             return
     except Exception:
         pass
-    # Fallback: paste via clipboard
+    # Fallback: clipboard paste
     copy_to_clipboard(text)
     paste_clipboard(win_id)
-
-
-def erase_loading_indicator(win_id: str) -> None:
-    """
-    Erase the ⏳ loading emoji that Espanso typed.
-    ⏳ is a multi-byte character — we backspace twice to be safe.
-    """
-    focus_window(win_id)
-    for _ in range(2):
-        try:
-            subprocess.run(["wtype", "-k", "BackSpace"], capture_output=True, timeout=2)
-        except Exception:
-            try:
-                subprocess.run(["xdotool", "key", "BackSpace"], timeout=2)
-            except Exception:
-                pass
-        time.sleep(0.02)
 
 
 def strip_code_fences(text: str) -> str:
@@ -180,7 +184,6 @@ def strip_code_fences(text: str) -> str:
 
 
 def build_messages(base_mode: str, prompt: str, clipboard: str = "") -> list:
-    """Build the messages list for the API call."""
     sys_prompt = SYSTEM_PROMPTS.get(base_mode, SYSTEM_PROMPTS["ad"])
     msgs = [{"role": "system", "content": sys_prompt}]
 
@@ -188,7 +191,7 @@ def build_messages(base_mode: str, prompt: str, clipboard: str = "") -> list:
         if prompt:
             user_content = f"Instruction: {prompt}\n\nContext:\n{clipboard}"
         else:
-            user_content = clipboard  # instruction is implied by system prompt
+            user_content = clipboard
     else:
         user_content = prompt
 
@@ -199,23 +202,20 @@ def build_messages(base_mode: str, prompt: str, clipboard: str = "") -> list:
 # ─── Async worker ─────────────────────────────────────────────────────────────
 
 def async_worker(base_mode: str, prompt: str, prev_win_id: str, use_clipboard: bool) -> None:
-    """
-    Runs in a detached background process. Fetches AI response and outputs it.
-    """
     clipboard = get_clipboard() if use_clipboard else ""
     msgs = build_messages(base_mode, prompt, clipboard)
 
-    result = tinc_client.run_chat(msgs, stream=False)
+    result = tinc_client.chat(msgs)          # always blocking, always str
     result = (result or "").strip()
 
     if base_mode == "ac":
         result = strip_code_fences(result)
 
+    # Always erase the loading text first
+    erase_loading_text(prev_win_id)
+
     if not result:
         return
-
-    # Erase the ⏳ loading indicator then output
-    erase_loading_indicator(prev_win_id)
 
     if base_mode in TYPING_MODES:
         type_text(result, prev_win_id)
@@ -227,14 +227,16 @@ def async_worker(base_mode: str, prompt: str, prev_win_id: str, use_clipboard: b
 # ─── Main router ─────────────────────────────────────────────────────────────
 
 def route(mode: str, prompt: str) -> None:
-    use_clipboard = mode.endswith("v") and mode != "av"  # 'av' is its own named mode
-    if mode == "av":
+    # Determine base mode and whether to use clipboard
+    if mode.endswith("v") and mode != "av":
+        base_mode = mode[:-1]   # "fixv" → "fix", "adv" → "ad"
         use_clipboard = True
+    elif mode == "av":
         base_mode = "av"
-    elif mode.endswith("v") and mode != "av":
-        base_mode = mode[:-1]  # e.g. "fixv" → "fix"
+        use_clipboard = True
     else:
         base_mode = mode
+        use_clipboard = False
 
     if base_mode == "ai":
         prev_win_id = get_active_window_id()
@@ -248,7 +250,7 @@ def route(mode: str, prompt: str) -> None:
         print("", end="")
         return
 
-    # All other modes: show ⏳ immediately, process in background
+    # All other modes: output loading text, process in background
     prev_win_id = get_active_window_id()
     subprocess.Popen(
         [sys.executable, os.path.abspath(__file__),
@@ -259,8 +261,7 @@ def route(mode: str, prompt: str) -> None:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    # Output ⏳ so Espanso replaces the trigger with a visible loading indicator
-    print("⏳", end="")
+    print(LOADING_TEXT, end="")
 
 
 # ─── Entry point ─────────────────────────────────────────────────────────────
