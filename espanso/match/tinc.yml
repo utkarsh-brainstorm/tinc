@@ -1,0 +1,137 @@
+# ============================================================
+#  Tinc Master Match File  |  tinc.yml
+#  Author: Tinc Project
+# ============================================================
+#
+#  SYNTAX:  [your text here]command
+#  No hyphens. Square brackets wrap the text, suffix follows directly.
+#
+#  ── TRANSLATION ─────────────────────────────────────────────
+#    [text]hi    Full Hindi translation (grammar + vocab)
+#    [text]hd    Literal transliteration (Romanized → Devanagari)
+#    [text]hu    Hinglish → Hindi script
+#
+#    Works for both single words and long sentences:
+#      [apple]hi              →  सेब
+#      [namaste]hd            →  नमस्ते
+#      [how are you today]hi  →  आज आप कैसे हैं
+#      [kya haal hai]hd       →  क्या हाल है
+#
+#  ── AI ──────────────────────────────────────────────────────
+#    [prompt]ai    Open interactive chat window
+#    [prompt]ac    Paste only the terminal command (silent)
+#    [prompt]ad    Paste AI answer directly (silent)
+#
+#    Examples:
+#      [write a haiku about rain]ai
+#      [command to update all snaps]ac
+#      [explain git rebase in 2 sentences]ad
+#
+#  ── MISC ────────────────────────────────────────────────────
+#    :today  → 2026-01-15
+#    :time   → 14:30:00
+#    :myip   → your public IP
+# ============================================================
+
+matches:
+  # ─────────────────────────────────────────────────────────
+  # MISC
+  # ─────────────────────────────────────────────────────────
+
+  - trigger: ":today"
+    replace: "{{d}}"
+    vars:
+      - name: d
+        type: date
+        params:
+          format: "%Y-%m-%d"
+
+  - trigger: ":time"
+    replace: "{{t}}"
+    vars:
+      - name: t
+        type: date
+        params:
+          format: "%H:%M:%S"
+
+  - trigger: ":myip"
+    replace: "{{ip}}"
+    vars:
+      - name: ip
+        type: shell
+        params:
+          cmd: "curl -s ifconfig.me"
+
+  - trigger: ":greet"
+    form: "Hello {{name}}, I hope you are having a wonderful day. Regarding {{topic}}, please let me know your thoughts."
+
+  # ═══════════════════════════════════════════════════════════
+  #  TRANSLATION  ─  [text]hi / [text]hd / [text]hu
+  #
+  #  Regex breakdown for "\\[(?P<text>[^\\]]+)\\]hi$":
+  #    \\[         = literal [
+  #    (?P<text>   = named capture group "text"
+  #    [^\\]]+     = one or more characters that are NOT ]
+  #    \\]         = literal ]
+  #    hi$         = the suffix at end of word
+  #
+  #  Works for any length text — max_word_chars=10000 in default.yml
+  # ═══════════════════════════════════════════════════════════
+
+  # Full grammatical translation: [apple]hi → सेब
+  - regex: "\\[(?P<text>[^\\]]+)\\]hi$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=hi ESPANSO_TEXT='{{text}}' python3 /home/heisenberg/.config/espanso/scripts/translate_client.py"
+
+  # Literal transliteration: [namaste]hd → नमस्ते
+  - regex: "\\[(?P<text>[^\\]]+)\\]hd$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=hd ESPANSO_TEXT='{{text}}' python3 /home/heisenberg/.config/espanso/scripts/translate_client.py"
+
+  # Hinglish → Hindi: [khaana]hu → खाना
+  - regex: "\\[(?P<text>[^\\]]+)\\]hu$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=hu ESPANSO_TEXT='{{text}}' python3 /home/heisenberg/.config/espanso/scripts/translate_client.py"
+
+  # ═══════════════════════════════════════════════════════════
+  #  AI  ─  [prompt]ai / [prompt]ac / [prompt]ad
+  # ═══════════════════════════════════════════════════════════
+
+  # Interactive popup: [write a poem]ai or []ai
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]ai$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=ai ESPANSO_TEXT='{{prompt}}' python3 /home/heisenberg/.config/espanso/scripts/ai_router.py"
+
+  # Command only: [list all processes]ac
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]ac$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=ac ESPANSO_TEXT='{{prompt}}' python3 /home/heisenberg/.config/espanso/scripts/ai_router.py"
+
+  # Direct paste: [explain recursion]ad
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]ad$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=ad ESPANSO_TEXT='{{prompt}}' python3 /home/heisenberg/.config/espanso/scripts/ai_router.py"

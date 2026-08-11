@@ -1,0 +1,37 @@
+# ============================================================
+#  Espanso Default Config  |  default.yml
+#  Author: Utkarsh Yadav
+# ============================================================
+
+# Backend: Use Wayland native backend
+backend: "wayland"
+
+# Keyboard layout
+keyboard_layout:
+  layout: "us"
+  variant: ""
+
+# Use clipboard injection for atomic, instant text replacement.
+# CRITICAL: Without this, Espanso types char-by-char (breaks on slow scripts).
+force_clipboard: true
+
+# Do NOT restore clipboard after injection — keep translated/AI text in clipboard
+# so user can paste it elsewhere if needed.
+restore_clipboard: false
+
+# ── CRITICAL: Increase the regex buffer size ──────────────────────────────────
+# Default is 30 chars. This means Espanso only looks at the last 30 characters
+# for pattern matching. Long sentences in [long text here]hi would fail silently.
+# We set this high to support long sentence translations and AI prompts.
+max_regex_buffer_size: 10000
+
+
+# ── Word separators ──────────────────────────────────────────────────────────
+# IMPORTANT: Do NOT include [ or ] here.
+# If '[' is a word separator, Espanso resets its capture buffer when the user
+# types '[', which completely breaks [text]hi / [text]ai triggers.
+# Only keep separators that genuinely bound a word.
+word_separators:
+  - "\n"
+  - "\r"
+  - "\t"
