@@ -2,36 +2,34 @@
 """
 ai_router.py — Routes all Espanso AI triggers for Tinc.
 
-SUFFIX MAP:
-  ai    → direct answer, zero system prompt injection
-  av    → ai + clipboard context (replace i→v)
-  ad    → short, precise answer (no markdown, no padding)
-  fix   → spelling/grammar fix, preserve tone
-  tldr  → 1-2 sentence TL;DR summary
-  ref   → refactor + comment code
-  py    → Python code only
-  cp    → C++ code only
-  sh    → Bash script only
-  htm   → HTML only
-  csv   → CSV data only
-  json  → JSON data only
+OUTPUT INJECTION: xdotool type (X11/XWayland)
+  wtype is NOT used — compositor rejects virtual keyboard protocol on this system.
+  xdotool type handles newlines natively (\\n → Return key) and requires
+  zero portal access.
 
-  CLIPBOARD VARIANTS (replace last char of suffix with 'v'):
-  fiv   → fix  + clipboard
-  tldv  → tldr + clipboard
-  rev   → ref  + clipboard
-  pv    → py   + clipboard
-  cv    → cp   + clipboard
-  sv    → sh   + clipboard
-  htv   → htm  + clipboard
-  jsov  → json + clipboard
-  csj   → csv  + clipboard  (csv already ends in v)
+TYPING SPEED: 2000 CPM (30ms per char) for writing/code modes.
+              Instant (delay=1) for ai/ad/av.
 
 LOADING TEXT MECHANISM:
-  Router outputs LOADING_LEN spaces so Espanso injects them.
+  Router outputs LOADING_LEN spaces → Espanso injects them.
   Background worker: move cursor left LOADING_LEN, overwrite with loading text.
   After API: backspace LOADING_LEN, type result.
-  This guarantees loading text always fits regardless of trigger length.
+
+SUFFIX MAP:
+  ai    → direct answer, zero system prompt
+  av    → ai + clipboard context (i→v)
+  ad    → short, precise 1-2 line answer
+  fix   → spelling/grammar fix, preserve tone
+  tldr  → 1-2 sentence summary
+  ref   → refactor + comment code
+  py    → Python only
+  cp    → C++ only
+  sh    → Bash only
+  htm   → HTML only
+  csv   → CSV only
+  json  → JSON only
+  Clipboard variants (replace last char with v):
+  fiv tldv rev pv cv sv htv jsov csj
 """
 import os
 import sys
@@ -45,11 +43,13 @@ import tinc_client
 LOADING_TEXT = "Bas ittu sa time aur..."
 LOADING_LEN  = len(LOADING_TEXT)   # 23
 
+# Typing speed: 2000 CPM = 30ms per char
+TYPING_DELAY_MS = 30
+
 # ─── Suffix → (base_mode, use_clipboard) ─────────────────────────────────────
 SUFFIX_MAP = {
-    # Core
     "ai":   ("ai",   False),
-    "av":   ("ai",   True),    # clipboard variant of ai (replace i→v)
+    "av":   ("ai",   True),
     "ad":   ("ad",   False),
     "fix":  ("fix",  False),
     "tldr": ("tldr", False),
@@ -73,8 +73,8 @@ SUFFIX_MAP = {
 }
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-# ai has ZERO system prompt — raw model output, user sees exactly what model says
 SYSTEM_PROMPTS = {
+    # ai has NO entry — zero system prompt, raw model output
     "ad": (
         "Answer in one or two lines maximum. Be extremely direct and precise. "
         "No introductions, no explanations, no markdown. Just the answer."
@@ -100,7 +100,6 @@ SYSTEM_PROMPTS = {
     "json": "Output ONLY valid JSON. No prose.",
 }
 
-# Modes whose output is typed at 400 cps (streaming feel)
 TYPING_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json"}
 
 
@@ -145,86 +144,59 @@ def focus_window(win_id: str) -> None:
             pass
 
 
-def move_cursor_left(n: int, win_id: str) -> None:
-    """Send n Left arrow key presses to move cursor back."""
+def xdo_type(text: str, win_id: str, delay_ms: int = 1) -> bool:
+    """
+    Inject text via xdotool type.
+    - Handles newlines natively (\\n → Return key).
+    - delay_ms=1: near-instant for ai/ad/av.
+    - delay_ms=30: 2000 CPM for fix/tldr/code modes.
+    Returns True on success.
+    """
     focus_window(win_id)
-    try:
-        subprocess.run(
-            ["xdotool", "key", "--clearmodifiers", "--repeat", str(n), "Left"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5
-        )
-    except Exception:
-        try:
-            # wtype fallback: send Left key repeatedly
-            for _ in range(n):
-                subprocess.run(["wtype", "-k", "Left"],
-                               capture_output=True, timeout=2)
-        except Exception:
-            pass
-
-
-def inject_text(text: str, win_id: str, delay_ms: int = 0) -> bool:
-    """Inject text via wtype. Returns True on success."""
-    focus_window(win_id)
-    cmd = ["wtype"]
-    if delay_ms > 0:
-        cmd += ["--delay", str(delay_ms)]
-    cmd += ["--", text]
+    cmd = [
+        "xdotool", "type",
+        "--clearmodifiers",
+        "--delay", str(delay_ms),
+        "--", text
+    ]
     try:
         r = subprocess.run(
             cmd,
-            capture_output=True,
-            timeout=max(20, len(text) // 30 + 10),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=max(30, len(text) // 2 + 10),
         )
         return r.returncode == 0
     except Exception:
         return False
 
 
-def inject_text_xdotool(text: str, win_id: str, delay_ms: int = 0) -> None:
-    """xdotool fallback for text injection."""
+def xdo_key(key: str, win_id: str, repeat: int = 1) -> None:
+    """Send a key press via xdotool key."""
     focus_window(win_id)
-    cmd = ["xdotool", "type", "--clearmodifiers"]
-    if delay_ms > 0:
-        cmd += ["--delay", str(delay_ms)]
-    cmd += ["--", text]
+    cmd = ["xdotool", "key", "--clearmodifiers"]
+    if repeat > 1:
+        cmd += ["--repeat", str(repeat)]
+    cmd.append(key)
     try:
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=max(20, len(text) // 30 + 10))
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
     except Exception:
         pass
 
 
 def erase_chars(n: int, win_id: str) -> None:
-    """Backspace n characters in the focused window."""
-    focus_window(win_id)
-    try:
-        subprocess.run(
-            ["xdotool", "key", "--clearmodifiers", "--repeat", str(n), "BackSpace"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10
-        )
-        return
-    except Exception:
-        pass
-    # wtype fallback
-    try:
-        bs = "\x08" * n
-        subprocess.run(["wtype", "--", bs], capture_output=True, timeout=10)
-    except Exception:
-        pass
+    """Backspace n characters."""
+    xdo_key("BackSpace", win_id, repeat=n)
 
 
-def do_inject(text: str, win_id: str, mode: str) -> None:
-    """Inject text — typed at 400cps for writing/code modes, instant for others."""
-    delay = 3 if mode in TYPING_MODES else 0
-    ok = inject_text(text, win_id, delay_ms=delay)
-    if not ok:
-        inject_text_xdotool(text, win_id, delay_ms=delay)
+def move_cursor_left(n: int, win_id: str) -> None:
+    """Move cursor left n positions."""
+    xdo_key("Left", win_id, repeat=n)
 
 
 def strip_code_fences(text: str) -> str:
     text = re.sub(r"^```[a-z]*\n?", "", text, flags=re.MULTILINE)
-    text = re.sub(r"```\s*$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"```\s*$",        "", text, flags=re.MULTILINE)
     return text.strip()
 
 
@@ -246,32 +218,29 @@ def build_messages(base_mode: str, prompt: str, clipboard: str = "") -> list:
 # ─── Async worker ─────────────────────────────────────────────────────────────
 
 def async_worker(base_mode: str, prompt: str, prev_win_id: str, use_clipboard: bool) -> None:
-    """
-    Step 1: Move cursor left LOADING_LEN, type loading text (overwrites spaces router placed).
-    Step 2: Call API.
-    Step 3: Erase loading text, inject result.
-    """
-    # Step 1 — Overwrite the placeholder spaces with the loading text
-    time.sleep(0.1)   # tiny delay to let Espanso finish its own injection first
+    # Step 1: Replace placeholder spaces with loading text
+    time.sleep(0.1)   # let Espanso finish its own injection first
     move_cursor_left(LOADING_LEN, prev_win_id)
-    ok = inject_text(LOADING_TEXT, prev_win_id, delay_ms=0)
-    if not ok:
-        inject_text_xdotool(LOADING_TEXT, prev_win_id, delay_ms=0)
+    xdo_type(LOADING_TEXT, prev_win_id, delay_ms=1)
 
-    # Step 2 — API call
+    # Step 2: API call
     clipboard = get_clipboard() if use_clipboard else ""
     msgs = build_messages(base_mode, prompt, clipboard)
     result = tinc_client.chat(msgs)
     result = (result or "").strip()
 
+    # Strip code fences from code/command outputs
     if base_mode in TYPING_MODES or base_mode == "ad":
         result = strip_code_fences(result)
 
-    # Step 3 — Replace loading text with result
+    # Step 3: Erase loading text, inject result
     erase_chars(LOADING_LEN, prev_win_id)
 
-    if result:
-        do_inject(result, prev_win_id, base_mode)
+    if not result:
+        return
+
+    delay = TYPING_DELAY_MS if base_mode in TYPING_MODES else 1
+    xdo_type(result, prev_win_id, delay_ms=delay)
 
 
 # ─── Main router ─────────────────────────────────────────────────────────────
@@ -292,9 +261,7 @@ def route(mode: str, prompt: str) -> None:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-
-    # Output LOADING_LEN spaces as placeholder.
-    # Background worker will move cursor left and overwrite with loading text.
+    # Output placeholder spaces; background worker overwrites with loading text
     print(" " * LOADING_LEN, end="")
 
 

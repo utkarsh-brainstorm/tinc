@@ -3,12 +3,15 @@
 #  Author: Utkarsh Yadav
 # ============================================================
 
-# Backend: Wayland native backend.
-# Even though this uses the xdg-desktop-portal RemoteDesktop/EIS protocol,
-# the permission popup is suppressed by pre-granting access via:
-#   flatpak permission-set remote-desktop espanso devices yes
-# and enabling the gnome-remote-desktop service.
-backend: "wayland"
+# Backend: xdotool (X11/XWayland).
+# WHY NOT WAYLAND:
+# On this system the Wayland compositor rejects the virtual keyboard protocol
+# (wtype fails with "Compositor does not support virtual keyboard protocol").
+# This means Espanso's wayland backend AND wtype-based output both fail silently,
+# causing: no line breaks in output, popup dialogs, and broken async injection.
+# The xdotool backend uses X11/XTest via XWayland — no portal, no popup,
+# no permission dialog, and works correctly with force_clipboard injection.
+backend: "xdotool"
 
 # Keyboard layout
 keyboard_layout:
