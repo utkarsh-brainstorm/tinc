@@ -1,36 +1,57 @@
 # ============================================================
 #  Tinc Master Match File  |  tinc.yml
-#  Author: Tinc Project
+#  Project: https://github.com/utkarsh-brainstorm/tinc
 # ============================================================
 #
 #  SYNTAX:  [your text here]command
 #  No hyphens. Square brackets wrap the text, suffix follows directly.
+#  All triggers INSTANTLY show ⏳ while AI processes in background.
+#
+#  ── AI ──────────────────────────────────────────────────────
+#
+#    [prompt]ai    Open interactive Spotlight AI chat window
+#    [prompt]ad    Paste full AI answer directly
+#    [prompt]ac    Paste ONLY a shell command (no prose)
+#    [prompt]av    Use clipboard as context, prompt as instruction
+#
+#  ── WRITING ─────────────────────────────────────────────────
+#    [text]fix     Fix spelling & minor grammar, preserve tone
+#    [text]tldr    1-2 sentence TL;DR executive summary
+#
+#  ── CODE ────────────────────────────────────────────────────
+#    [prompt]ref   Refactor + comment messy code
+#    [prompt]py    Python code only
+#    [prompt]cp    C++ code only
+#    [prompt]sh    Bash script only
+#    [prompt]htm   HTML only
+#    [prompt]csv   CSV data only
+#    [prompt]json  JSON data only
+#
+#  ── CLIPBOARD VARIANTS (suffix with 'v') ────────────────────
+#    []fixv    Fix spelling/grammar of clipboard text
+#    []tldrv   TL;DR of clipboard text
+#    []refv    Refactor clipboard code
+#    []pyv     Convert clipboard text to Python
+#    []cpv     Convert clipboard text to C++
+#    []shv     Convert clipboard text to Bash
+#    []htmv    Convert clipboard text to HTML
+#    []csvv    Convert clipboard text to CSV
+#    []jsonv   Convert clipboard text to JSON
+#    []acv     Shell command from clipboard context
+#    []adv     (same as av) Answer from clipboard context
+#    Note: all [v] triggers also work with an instruction:
+#          [make it formal]fixv  or  []fixv  ← both fine
 #
 #  ── TRANSLATION ─────────────────────────────────────────────
 #    [text]hi    Full Hindi translation (grammar + vocab)
 #    [text]hd    Literal transliteration (Romanized → Devanagari)
 #    [text]hu    Hinglish → Hindi script
 #
-#    Works for both single words and long sentences:
-#      [apple]hi              →  सेब
-#      [namaste]hd            →  नमस्ते
-#      [how are you today]hi  →  आज आप कैसे हैं
-#      [kya haal hai]hd       →  क्या हाल है
-#
-#  ── AI ──────────────────────────────────────────────────────
-#    [prompt]ai    Open interactive chat window
-#    [prompt]ac    Paste only the terminal command (silent)
-#    [prompt]ad    Paste AI answer directly (silent)
-#
-#    Examples:
-#      [write a haiku about rain]ai
-#      [command to update all snaps]ac
-#      [explain git rebase in 2 sentences]ad
-#
 #  ── MISC ────────────────────────────────────────────────────
 #    :today  → 2026-01-15
 #    :time   → 14:30:00
 #    :myip   → your public IP
+#
 # ============================================================
 
 matches:
@@ -62,76 +83,239 @@ matches:
         params:
           cmd: "curl -s ifconfig.me"
 
-  - trigger: ":greet"
-    form: "Hello {{name}}, I hope you are having a wonderful day. Regarding {{topic}}, please let me know your thoughts."
-
   # ═══════════════════════════════════════════════════════════
   #  TRANSLATION  ─  [text]hi / [text]hd / [text]hu
-  #
-  #  Regex breakdown for "\\[(?P<text>[^\\]]+)\\]hi$":
-  #    \\[         = literal [
-  #    (?P<text>   = named capture group "text"
-  #    [^\\]]+     = one or more characters that are NOT ]
-  #    \\]         = literal ]
-  #    hi$         = the suffix at end of word
-  #
-  #  Works for any length text — max_word_chars=10000 in default.yml
   # ═══════════════════════════════════════════════════════════
 
-  # Full grammatical translation: [apple]hi → सेब
   - regex: "\\[(?P<text>[^\\]]+)\\]hi$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=hi ESPANSO_TEXT='{{text}}' python3 /home/heisenberg/.config/espanso/scripts/translate_client.py"
+          cmd: "ESPANSO_MODE=hi ESPANSO_TEXT='{{text}}' python3 ~/.config/espanso/scripts/translate_client.py"
 
-  # Literal transliteration: [namaste]hd → नमस्ते
   - regex: "\\[(?P<text>[^\\]]+)\\]hd$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=hd ESPANSO_TEXT='{{text}}' python3 /home/heisenberg/.config/espanso/scripts/translate_client.py"
+          cmd: "ESPANSO_MODE=hd ESPANSO_TEXT='{{text}}' python3 ~/.config/espanso/scripts/translate_client.py"
 
-  # Hinglish → Hindi: [khaana]hu → खाना
   - regex: "\\[(?P<text>[^\\]]+)\\]hu$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=hu ESPANSO_TEXT='{{text}}' python3 /home/heisenberg/.config/espanso/scripts/translate_client.py"
+          cmd: "ESPANSO_MODE=hu ESPANSO_TEXT='{{text}}' python3 ~/.config/espanso/scripts/translate_client.py"
 
   # ═══════════════════════════════════════════════════════════
-  #  AI  ─  [prompt]ai / [prompt]ac / [prompt]ad
+  #  AI CORE  ─  [prompt]ai / [prompt]ac / [prompt]ad / [prompt]av
   # ═══════════════════════════════════════════════════════════
 
-  # Interactive popup: [write a poem]ai or []ai
   - regex: "\\[(?P<prompt>[^\\]]*)\\]ai$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=ai ESPANSO_TEXT='{{prompt}}' python3 /home/heisenberg/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE=ai ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # Command only: [list all processes]ac
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]ac$"
-    replace: "{{out}}"
-    vars:
-      - name: out
-        type: shell
-        params:
-          cmd: "ESPANSO_MODE=ac ESPANSO_TEXT='{{prompt}}' python3 /home/heisenberg/.config/espanso/scripts/ai_router.py"
-
-  # Direct paste: [explain recursion]ad
   - regex: "\\[(?P<prompt>[^\\]]*)\\]ad$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=ad ESPANSO_TEXT='{{prompt}}' python3 /home/heisenberg/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE=ad ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]ac$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=ac ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]av$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=av ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  # ═══════════════════════════════════════════════════════════
+  #  WRITING  ─  [text]fix / [text]tldr
+  # ═══════════════════════════════════════════════════════════
+
+  - regex: "\\[(?P<prompt>[^\\]]+)\\]fix$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=fix ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]+)\\]tldr$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=tldr ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  # ═══════════════════════════════════════════════════════════
+  #  CODE  ─  [prompt]ref / [prompt]py / [prompt]cp / etc.
+  # ═══════════════════════════════════════════════════════════
+
+  - regex: "\\[(?P<prompt>[^\\]]+)\\]ref$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=ref ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]py$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=py ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]cp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=cp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]sh$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=sh ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]htm$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=htm ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]csv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=csv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]json$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=json ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  # ═══════════════════════════════════════════════════════════
+  #  CLIPBOARD VARIANTS  ─  []fixv / []tldrv / []refv / etc.
+  #  Instruction in brackets is optional. E.g: []fixv or [make formal]fixv
+  # ═══════════════════════════════════════════════════════════
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]fixv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=fixv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]tldrv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=tldrv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]refv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=refv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]pyv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=pyv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]cpv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=cpv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]shv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=shv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]htmv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=htmv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]csvv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=csvv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]jsonv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=jsonv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]acv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=acv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]adv$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=adv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
