@@ -1,4 +1,4 @@
-# Tinc: This Is Not Copilot
+# Tinc: Tinc Is Not Copilot
 
 Tinc is a zero-telemetry, Wayland-native AI assistant that brings the power of Large Language Models (like Google Gemini or Groq) directly into **any** text field across your Linux desktop.
 
