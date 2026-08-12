@@ -2,21 +2,28 @@
 """
 ai_router.py — Espanso trigger router for Tinc.
 
-All AI triggers follow the pattern  [your text]suffix
-Espanso calls this script synchronously. It immediately prints the loading text
-so Espanso injects it at the cursor. A background worker then:
-  1. Calls the AI API
-  2. Backspaces the loading text
-  3. Copies the result to clipboard (X11 via xclip — no portal)
-  4. Pastes it via xdotool key ctrl+v
+Trigger syntax:  [your text]suffix    (typed anywhere on the system)
+
+Espanso calls this script synchronously for the replacement value.
+It prints the loading text so Espanso injects it at the cursor, then
+spawns a background worker that:
+  1. Calls the AI API (Gemini → Groq fallback chain)
+  2. Erases the loading text via /dev/uinput BackSpace
+  3. Copies the result to Wayland clipboard (wl-copy)
+  4. Sends Ctrl+V via /dev/uinput (same as Espanso itself uses)
+
+WHY /dev/uinput FOR OUTPUT:
+
+  Wayland portal Ctrl+V = triggers "Allow remote interaction" popup every restart
+  /dev/uinput Ctrl+V   = kernel-level, reaches ALL apps, zero popup, same as Espanso
 
 SUFFIX TABLE:
   Suffix   Mode   Web    Description
   ──────────────────────────────────────────────────────────
-  ai       ai     YES    Direct answer, zero system prompt
-  av       ai     YES    Same + clipboard as context (i→v)
-  ad       ad     YES    Short precise answer (1-2 lines, no markdown)
-  fix      fix    NO     Fix spelling/grammar only, preserve style
+  ai       ai     YES    Direct AI answer (no system prompt)
+  av       ai     YES    Same + clipboard as context
+  ad       ad     YES    Short precise answer (1-2 sentences)
+  fix      fix    NO     Fix spelling/grammar, preserve style
   tldr     tldr   NO     1-2 sentence summary
   ref      ref    NO     Refactor + comment code
   py       py     NO     Python code only
@@ -27,7 +34,7 @@ SUFFIX TABLE:
   json     json   NO     JSON only
 
   Clipboard variants (replace last char with v):
-  fiv tldv rev pv cv sv htv jsov csj
+  fiv  tldv  rev  pv  cv  sv  htv  jsov  csj
 """
 import os
 import sys
@@ -37,11 +44,12 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tinc_client
+import tinc_uinput
 
 LOADING_TEXT = "Bas ittu sa time aur..."
 LOADING_LEN  = len(LOADING_TEXT)  # 23
 
-# ─── Suffix map: suffix → (mode, web_search, use_clipboard) ─────────────────
+# ─── Suffix → (mode, web_search, use_clipboard) ──────────────────────────────
 SUFFIX_MAP = {
     "ai":   ("ai",   True,  False),
     "av":   ("ai",   True,  True),
@@ -67,9 +75,9 @@ SUFFIX_MAP = {
     "csj":  ("csv",  False, True),
 }
 
-# Modes that require a strict code-only system prompt
+# ─── System prompts ───────────────────────────────────────────────────────────
+# "ai" has NO system prompt — raw model output with web search
 SYSTEM_PROMPTS = {
-    # "ai" intentionally has NO system prompt — raw model output
     "ad": (
         "Answer in one or two sentences maximum. Be direct and precise. "
         "No markdown, no bullet points, no intro. Just the answer."
@@ -85,89 +93,52 @@ SYSTEM_PROMPTS = {
     ),
     "ref": (
         "Refactor and optimize the given code. Add concise inline comments. "
-        "Output ONLY the refactored code. No prose, no explanation."
+        "Output ONLY the refactored code. No explanation, no prose."
     ),
-    "py":   ("Output ONLY valid Python code. No explanation, no prose. "
-             "Do NOT wrap in markdown code fences. Just the raw code."),
-    "cp":   ("Output ONLY valid C++ code. No explanation, no prose. "
-             "Do NOT wrap in markdown code fences. Just the raw code."),
-    "sh":   ("Output ONLY a valid Bash script. No explanation, no prose. "
-             "Do NOT wrap in markdown code fences. Just the raw code."),
-    "htm":  ("Output ONLY valid HTML. No explanation, no prose. "
-             "Do NOT wrap in markdown code fences. Just the raw HTML."),
+    "py": (
+        "Output ONLY valid Python code. No explanation, no prose. "
+        "Do NOT wrap in markdown code fences. Raw code only."
+    ),
+    "cp": (
+        "Output ONLY valid C++ code. No explanation, no prose. "
+        "Do NOT wrap in markdown code fences. Raw code only."
+    ),
+    "sh": (
+        "Output ONLY a valid Bash script. No explanation, no prose. "
+        "Do NOT wrap in markdown code fences. Raw code only."
+    ),
+    "htm": (
+        "Output ONLY valid HTML. No explanation, no prose. "
+        "Do NOT wrap in markdown code fences. Raw HTML only."
+    ),
     "csv":  "Output ONLY valid CSV data. No prose, no code fences.",
-    "json": ("Output ONLY valid JSON. No explanation, no prose. "
-             "Do NOT wrap in markdown code fences. Just the raw JSON."),
+    "json": (
+        "Output ONLY valid JSON. No explanation, no prose. "
+        "Do NOT wrap in markdown code fences. Raw JSON only."
+    ),
 }
 
-
-# ─── Helpers ─────────────────────────────────────────────────────────────────
-
-def get_active_window_id() -> str:
-    try:
-        r = subprocess.run(["xprop", "-root", "_NET_ACTIVE_WINDOW"],
-                           capture_output=True, text=True, timeout=2)
-        m = re.search(r"0x[0-9a-f]+", r.stdout)
-        return m.group(0) if m else ""
-    except Exception:
-        return ""
+CODE_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad"}
 
 
-def focus_window(win_id: str) -> None:
-    if win_id:
-        try:
-            subprocess.run(["wmctrl", "-ia", win_id],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
-            time.sleep(0.1)
-        except Exception:
-            pass
-
+# ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def copy_to_clipboard(text: str) -> None:
-    """X11 clipboard via xclip — no Wayland portal, no popup."""
-    try:
-        p = subprocess.Popen(["xclip", "-selection", "clipboard"],
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-        p.communicate(input=text.encode("utf-8"), timeout=5)
-    except Exception:
-        # wl-copy fallback
+    """Write text to Wayland clipboard (wl-copy). Falls back to xclip."""
+    for cmd in [["wl-copy"], ["xclip", "-selection", "clipboard"]]:
         try:
-            p = subprocess.Popen(["wl-copy"],
-                                 stdin=subprocess.PIPE,
-                                 stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL)
+            p = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             p.communicate(input=text.encode("utf-8"), timeout=5)
+            if p.returncode == 0:
+                return
         except Exception:
-            pass
-
-
-def paste_clipboard(win_id: str) -> None:
-    """Send Ctrl+V to paste. X11 keystroke via xdotool — no portal."""
-    focus_window(win_id)
-    try:
-        subprocess.run(["xdotool", "key", "--clearmodifiers", "ctrl+v"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-    except Exception:
-        pass
-
-
-def erase_chars(n: int, win_id: str) -> None:
-    """Backspace n characters via xdotool."""
-    focus_window(win_id)
-    try:
-        subprocess.run(["xdotool", "key", "--clearmodifiers",
-                        "--repeat", str(n), "BackSpace"],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
-    except Exception:
-        pass
+            continue
 
 
 def get_clipboard_text() -> str:
     """Read current clipboard content."""
-    for cmd in [["xclip", "-selection", "clipboard", "-o"],
-                ["wl-paste", "--no-newline"]]:
+    for cmd in [["wl-paste", "--no-newline"], ["xclip", "-selection", "clipboard", "-o"]]:
         try:
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
             if r.returncode == 0 and r.stdout.strip():
@@ -178,6 +149,7 @@ def get_clipboard_text() -> str:
 
 
 def strip_code_fences(text: str) -> str:
+    """Remove markdown ``` code fences from AI output."""
     text = re.sub(r"^```[a-z]*\n?", "", text, flags=re.MULTILINE)
     text = re.sub(r"```\s*$",       "", text, flags=re.MULTILINE)
     return text.strip()
@@ -198,26 +170,29 @@ def build_messages(mode: str, prompt: str, context: str = "") -> list:
 
 # ─── Async worker ─────────────────────────────────────────────────────────────
 
-def async_worker(mode: str, prompt: str, win_id: str,
-                 web_search: bool, use_clipboard: bool) -> None:
-    # Get clipboard context if needed
+def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool) -> None:
+    # Fetch clipboard context if needed
     context = get_clipboard_text() if use_clipboard else ""
 
-    # API call
+    # Call AI
     msgs   = build_messages(mode, prompt, context)
     result = tinc_client.chat(msgs, web_search=web_search)
     result = (result or "").strip()
 
-    # Strip code fences for all modes that output code/structured text
-    CODE_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad"}
+    # Strip markdown fences for code/structured output modes
     if mode in CODE_MODES:
         result = strip_code_fences(result)
 
-    # Erase loading text, inject result
-    erase_chars(LOADING_LEN, win_id)
-    if result:
-        copy_to_clipboard(result)
-        paste_clipboard(win_id)
+    if not result:
+        # Erase loading text and leave nothing
+        tinc_uinput.backspace(LOADING_LEN)
+        return
+
+    # Erase loading text, then paste result — all via /dev/uinput (no portal)
+    tinc_uinput.backspace(LOADING_LEN)
+    copy_to_clipboard(result)
+    time.sleep(0.1)   # brief pause so clipboard settles before paste
+    tinc_uinput.ctrl_v()
 
 
 # ─── Main router ──────────────────────────────────────────────────────────────
@@ -226,28 +201,27 @@ def route(mode: str, prompt: str) -> None:
     if mode not in SUFFIX_MAP:
         return
     mode_name, web_search, use_clipboard = SUFFIX_MAP[mode]
-    win_id = get_active_window_id()
 
+    # Spawn background worker — inherits full session (DISPLAY, WAYLAND_DISPLAY, etc.)
     subprocess.Popen(
         [sys.executable, os.path.abspath(__file__),
-         "--worker", mode_name, prompt, win_id,
-         "1" if web_search else "0",
+         "--worker", mode_name, prompt,
+         "1" if web_search    else "0",
          "1" if use_clipboard else "0"],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        # Do NOT use start_new_session=True — subprocess must inherit
-        # the X11/Wayland session so xclip and xdotool work without portal.
     )
+    # Print loading text — Espanso injects this at cursor via EVDEVInjector
     print(LOADING_TEXT, end="")
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 7 and sys.argv[1] == "--worker":
-        _, _, mode, prompt, win_id, web_str, cb_str = sys.argv[:7]
-        async_worker(mode, prompt, win_id,
+    if len(sys.argv) >= 6 and sys.argv[1] == "--worker":
+        _, _, mode, prompt, web_str, cb_str = sys.argv[:6]
+        async_worker(mode, prompt,
                      web_search=(web_str == "1"),
                      use_clipboard=(cb_str == "1"))
         sys.exit(0)
