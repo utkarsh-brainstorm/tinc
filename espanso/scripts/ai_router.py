@@ -49,34 +49,49 @@ import tinc_uinput
 LOADING_TEXT = "Bas ittu sa time aur..."
 LOADING_LEN  = len(LOADING_TEXT)  # 23
 
-# ─── Suffix → (mode, web_search, use_clipboard) ──────────────────────────────
+# ─── Suffix → (mode, web_search, use_clipboard, paste_mode) ───────────────
+# paste_mode: 0 = Shift+Insert, 1 = Ctrl+Shift+V (Ptyxis), 2 = type_string (cmd)
 SUFFIX_MAP = {
-    "ai":   ("ai",   True,  False),
-    "av":   ("ai",   True,  True),
-    "ad":   ("ad",   True,  False),
-    "fix":  ("fix",  False, False),
-    "tldr": ("tldr", False, False),
-    "ref":  ("ref",  False, False),
-    "py":   ("py",   False, False),
-    "cp":   ("cp",   False, False),
-    "sh":   ("sh",   False, False),
-    "htm":  ("htm",  False, False),
-    "csv":  ("csv",  False, False),
-    "json": ("json", False, False),
+    # Default (Shift+Insert)
+    "ai":   ("ai",   True,  False, 0),
+    "av":   ("ai",   True,  True,  0),
+    "ad":   ("ad",   True,  False, 0),
+    "fix":  ("fix",  False, False, 0),
+    "tldr": ("tldr", False, False, 0),
+    "ref":  ("ref",  False, False, 0),
+    "py":   ("py",   False, False, 0),
+    "cp":   ("cp",   False, False, 0),
+    "sh":   ("sh",   False, False, 0),
+    "htm":  ("htm",  False, False, 0),
+    "csv":  ("csv",  False, False, 0),
+    "json": ("json", False, False, 0),
+
     # Clipboard variants
-    "fiv":  ("fix",  False, True),
-    "tldv": ("tldr", False, True),
-    "rev":  ("ref",  False, True),
-    "pv":   ("py",   False, True),
-    "cv":   ("cp",   False, True),
-    "sv":   ("sh",   False, True),
-    "htv":  ("htm",  False, True),
-    "jsov": ("json", False, True),
-    "csj":  ("csv",  False, True),
+    "fiv":  ("fix",  False, True,  0),
+    "tldv": ("tldr", False, True,  0),
+    "rev":  ("ref",  False, True,  0),
+    "pv":   ("py",   False, True,  0),
+    "cv":   ("cp",   False, True,  0),
+    "sv":   ("sh",   False, True,  0),
+    "htv":  ("htm",  False, True,  0),
+    "jsov": ("json", False, True,  0),
+    "csj":  ("csv",  False, True,  0),
+
+    # Ptyxis variants (Ctrl+Shift+V)
+    "aip":  ("ai",   True,  False, 1),
+    "adp":  ("ad",   True,  False, 1),
+    "fixp": ("fix",  False, False, 1),
+    "tldrp":("tldr", False, False, 1),
+    "refp": ("ref",  False, False, 1),
+    "pyp":  ("py",   False, False, 1),
+    "cpp":  ("cp",   False, False, 1),
+    "shp":  ("sh",   False, False, 1),
+
+    # Linux command mode (type_string)
+    "cmd":  ("cmd",  False, False, 2),
 }
 
 # ─── System prompts ───────────────────────────────────────────────────────────
-# "ai" has NO system prompt — raw model output with web search
 SYSTEM_PROMPTS = {
     "ad": (
         "Answer in one or two sentences maximum. Be direct and precise. "
@@ -116,9 +131,14 @@ SYSTEM_PROMPTS = {
         "Output ONLY valid JSON. No explanation, no prose. "
         "Do NOT wrap in markdown code fences. Raw JSON only."
     ),
+    "cmd": (
+        "Output ONLY a single valid Linux terminal command. "
+        "No explanation, no markdown fences, no prose. "
+        "Just the raw command itself."
+    )
 }
 
-CODE_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad"}
+CODE_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad", "cmd"}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -128,16 +148,10 @@ def copy_to_clipboard(text: str) -> None:
     for cmd in [["wl-copy"], ["wl-copy", "-p"], ["xclip", "-selection", "clipboard"], ["xclip", "-selection", "primary"]]:
         try:
             p = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                 stdout=open("/tmp/tinc_worker.out", "w"), stderr=subprocess.DEVNULL)
             p.communicate(input=text.encode("utf-8"), timeout=5)
         except Exception:
             continue
-
-def inject_text(text: str) -> None:
-    """Inject text efficiently via uinput + Shift+Insert pasting."""
-    tinc_uinput.backspace(23)
-    copy_to_clipboard(text)
-    tinc_uinput.shift_insert()
 
 def get_clipboard_text() -> str:
     """Read current clipboard content."""
@@ -173,7 +187,7 @@ def build_messages(mode: str, prompt: str, context: str = "") -> list:
 
 # ─── Async worker ─────────────────────────────────────────────────────────────
 
-def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool) -> None:
+def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool, paste_mode: int) -> None:
     # Fetch clipboard context if needed
     context = get_clipboard_text() if use_clipboard else ""
 
@@ -191,11 +205,24 @@ def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool) 
         tinc_uinput.backspace(LOADING_LEN)
         return
 
-    # Erase loading text, then paste result — all via /dev/uinput (no portal)
+    # Special handling for cmd (type_string)
+    if paste_mode == 2:
+        # Replace newlines with '; ' to avoid executing the command
+        result = result.replace('\n', ' ; ').strip()
+        tinc_uinput.backspace(LOADING_LEN)
+        time.sleep(0.1)
+        tinc_uinput.type_string(result)
+        return
+
+    # Erase loading text, then paste result
     tinc_uinput.backspace(LOADING_LEN)
     copy_to_clipboard(result)
     time.sleep(0.1)   # brief pause so clipboard settles before paste
-    tinc_uinput.shift_insert()
+    
+    if paste_mode == 1:
+        tinc_uinput.ctrl_shift_v()
+    else:
+        tinc_uinput.shift_insert()
 
 
 # ─── Main router ──────────────────────────────────────────────────────────────
@@ -203,30 +230,32 @@ def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool) 
 def route(mode: str, prompt: str) -> None:
     if mode not in SUFFIX_MAP:
         return
-    mode_name, web_search, use_clipboard = SUFFIX_MAP[mode]
+    mode_name, web_search, use_clipboard, paste_mode = SUFFIX_MAP[mode]
 
-    # Spawn background worker — inherits full session (DISPLAY, WAYLAND_DISPLAY, etc.)
+    # Spawn background worker — inherits full session
     subprocess.Popen(
         [sys.executable, os.path.abspath(__file__),
          "--worker", mode_name, prompt,
          "1" if web_search    else "0",
-         "1" if use_clipboard else "0"],
+         "1" if use_clipboard else "0",
+         str(paste_mode)],
         stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=open("/tmp/tinc_worker.out", "w"),
+        stderr=open("/tmp/tinc_worker.err", "w"),
     )
-    # Print loading text — Espanso injects this at cursor via EVDEVInjector
+    # Print loading text
     print(LOADING_TEXT, end="")
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if len(sys.argv) >= 6 and sys.argv[1] == "--worker":
-        _, _, mode, prompt, web_str, cb_str = sys.argv[:6]
+    if len(sys.argv) >= 7 and sys.argv[1] == "--worker":
+        _, _, mode, prompt, web_str, cb_str, paste_str = sys.argv[:7]
         async_worker(mode, prompt,
                      web_search=(web_str == "1"),
-                     use_clipboard=(cb_str == "1"))
+                     use_clipboard=(cb_str == "1"),
+                     paste_mode=int(paste_str))
         sys.exit(0)
 
     mode   = os.environ.get("ESPANSO_MODE", "").strip()

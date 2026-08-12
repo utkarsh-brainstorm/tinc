@@ -289,3 +289,79 @@ matches:
         type: shell
         params:
           cmd: "ESPANSO_MODE=csj ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+  # ═══════════════════════════════════════════════════════════
+  #  PTYXIS / TERMINAL VARIANTS & CMD
+  # ═══════════════════════════════════════════════════════════
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]aip$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=aip ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]adp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=adp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]fixp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=fixp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]tldrp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=tldrp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]refp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=refp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]pyp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=pyp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]cpp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=cpp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]shp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=shp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]cmd$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=cmd ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
