@@ -1,43 +1,32 @@
 # ============================================================
 #  Espanso Default Config  |  default.yml
-#  Author: Utkarsh Yadav
+#  Project: This is Not Copilot (tinc)
 # ============================================================
 
-# Backend: xdotool (X11/XWayland).
-# WHY NOT WAYLAND:
-# On this system the Wayland compositor rejects the virtual keyboard protocol
-# (wtype fails with "Compositor does not support virtual keyboard protocol").
-# This means Espanso's wayland backend AND wtype-based output both fail silently,
-# causing: no line breaks in output, popup dialogs, and broken async injection.
-# The xdotool backend uses X11/XTest via XWayland — no portal, no popup,
-# no permission dialog, and works correctly with force_clipboard injection.
-backend: "xdotool"
+# Backend: Auto (EVDEV on Linux).
+# Espanso detects keypresses via /dev/input (kernel-level, no portal).
+# Text injection via /dev/uinput (kernel-level, no portal).
+# This is the most reliable backend on Linux — zero popups, zero portals.
+backend: "auto"
 
 # Keyboard layout
 keyboard_layout:
   layout: "us"
   variant: ""
 
-# Use clipboard injection for atomic, instant text replacement.
-# CRITICAL: Without this, Espanso types char-by-char (breaks on slow scripts).
+# Clipboard injection for Espanso's OWN trigger replacement.
+# Required: prevents Espanso typing char-by-char (which breaks regex triggers).
 force_clipboard: true
 
-# Do NOT restore clipboard after injection — keep translated/AI text in clipboard
-# so user can paste it elsewhere if needed.
+# Keep AI/translated output in clipboard after pasting (useful to re-paste).
 restore_clipboard: false
 
-# ── CRITICAL: Increase the regex buffer size ──────────────────────────────────
-# Default is 30 chars. This means Espanso only looks at the last 30 characters
-# for pattern matching. Long sentences in [long text here]hi would fail silently.
-# We set this high to support long sentence translations and AI prompts.
+# Regex buffer: must be large enough for longest [prompt]ai trigger.
+# Default 30 chars would silently break long prompts.
 max_regex_buffer_size: 10000
 
-
-# ── Word separators ──────────────────────────────────────────────────────────
-# IMPORTANT: Do NOT include [ or ] here.
-# If '[' is a word separator, Espanso resets its capture buffer when the user
-# types '[', which completely breaks [text]hi / [text]ai triggers.
-# Only keep separators that genuinely bound a word.
+# Word separators: do NOT include [ or ] — they are used in our trigger syntax.
+# Including them would reset Espanso's capture buffer mid-trigger.
 word_separators:
   - "\n"
   - "\r"
