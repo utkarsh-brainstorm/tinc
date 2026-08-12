@@ -124,17 +124,20 @@ CODE_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad"
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def copy_to_clipboard(text: str) -> None:
-    """Write text to Wayland clipboard (wl-copy). Falls back to xclip."""
-    for cmd in [["wl-copy"], ["xclip", "-selection", "clipboard"]]:
+    """Write text to Wayland clipboard AND primary selection, fallback to xclip."""
+    for cmd in [["wl-copy"], ["wl-copy", "-p"], ["xclip", "-selection", "clipboard"], ["xclip", "-selection", "primary"]]:
         try:
             p = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             p.communicate(input=text.encode("utf-8"), timeout=5)
-            if p.returncode == 0:
-                return
         except Exception:
             continue
 
+def inject_text(text: str) -> None:
+    """Inject text efficiently via uinput + Shift+Insert pasting."""
+    tinc_uinput.backspace(23)
+    copy_to_clipboard(text)
+    tinc_uinput.shift_insert()
 
 def get_clipboard_text() -> str:
     """Read current clipboard content."""
@@ -192,7 +195,7 @@ def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool) 
     tinc_uinput.backspace(LOADING_LEN)
     copy_to_clipboard(result)
     time.sleep(0.1)   # brief pause so clipboard settles before paste
-    tinc_uinput.ctrl_v()
+    tinc_uinput.shift_insert()
 
 
 # ─── Main router ──────────────────────────────────────────────────────────────
