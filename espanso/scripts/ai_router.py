@@ -220,9 +220,17 @@ def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool, 
 # ─── Main router ──────────────────────────────────────────────────────────────
 
 def route(mode: str, prompt: str) -> None:
+    web_override = False
+    if mode.startswith("w") and len(mode) > 1 and mode[1:] in SUFFIX_MAP:
+        mode = mode[1:]
+        web_override = True
+
     if mode not in SUFFIX_MAP:
         return
     mode_name, web_search, use_clipboard, paste_mode = SUFFIX_MAP[mode]
+
+    if web_override:
+        web_search = True
 
     # Spawn background worker — inherits full session
     subprocess.Popen(

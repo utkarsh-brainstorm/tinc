@@ -50,3 +50,9 @@ If you are using modern GTK4 terminals like **Ptyxis** (where standard `Shift+In
 
 ## Installation
 Just run `./install.sh` from the repository root. It will prompt you for your API key.
+
+### Web Search Override (The `w` prefix)
+By default, only the `ai` command enables web searching to retrieve real-time data. If you want to force web search for **any** other command, simply prefix the suffix with `w`!
+* `wcmd` - Web search for a linux command
+* `wtldr` - Read the web before summarizing
+* `wad` - Web search for a precise answer

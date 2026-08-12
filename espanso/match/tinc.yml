@@ -108,268 +108,268 @@ matches:
   # ═══════════════════════════════════════════════════════════
 
   # ai — direct answer, no system prompt
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]ai$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?ai)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=ai ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # av — ai + clipboard context  (i→v)
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]av$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?av)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=av ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # ad — short, precise answer (1-2 lines)
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]ad$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?ad)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=ad ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # ═══════════════════════════════════════════════════════════
   #  WRITING
   # ═══════════════════════════════════════════════════════════
 
-  - regex: "\\[(?P<prompt>[^\\]]+)\\]fix$"
+  - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?fix)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=fix ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]+)\\]tldr$"
+  - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?tldr)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=tldr ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # ═══════════════════════════════════════════════════════════
   #  CODE OUTPUT
   # ═══════════════════════════════════════════════════════════
 
-  - regex: "\\[(?P<prompt>[^\\]]+)\\]ref$"
+  - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?ref)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=ref ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]py$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?py)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=py ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]cp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?cp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=cp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]sh$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?sh)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=sh ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]htm$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?htm)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=htm ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]csv$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?csv)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=csv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]json$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?json)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=json ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # ═══════════════════════════════════════════════════════════
   #  CLIPBOARD VARIANTS — replace last char of suffix with 'v'
   # ═══════════════════════════════════════════════════════════
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]fiv$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?fiv)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=fiv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]tldv$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?tldv)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=tldv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]rev$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?rev)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=rev ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]pv$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?pv)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=pv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]cv$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?cv)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=cv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]sv$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?sv)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=sv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]htv$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?htv)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=htv ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]jsov$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?jsov)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=jsov ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]csj$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?csj)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=csj ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
   # ═══════════════════════════════════════════════════════════
   #  PTYXIS / TERMINAL VARIANTS & CMD
   # ═══════════════════════════════════════════════════════════
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]aip$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?aip)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=aip ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]adp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?adp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=adp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]fixp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?fixp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=fixp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]tldrp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?tldrp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=tldrp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]refp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?refp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=refp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]pyp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?pyp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=pyp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]cpp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?cpp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=cpp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]shp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?shp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=shp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]cmd$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?cmd)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=cmd ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<prompt>[^\\]]*)\\]cmdp$"
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?cmdp)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=cmdp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
