@@ -86,9 +86,10 @@ SUFFIX_MAP = {
     "pyp":  ("py",   False, False, 1),
     "cpp":  ("cp",   False, False, 1),
     "shp":  ("sh",   False, False, 1),
+    "cmdp": ("cmd",  False, False, 1),
 
-    # Linux command mode (type_string)
-    "cmd":  ("cmd",  False, False, 2),
+    # Linux command mode
+    "cmd":  ("cmd",  False, False, 0),
 }
 
 # ─── System prompts ───────────────────────────────────────────────────────────
@@ -134,7 +135,7 @@ SYSTEM_PROMPTS = {
     "cmd": (
         "Output ONLY a single valid Linux terminal command. "
         "No explanation, no markdown fences, no prose. "
-        "Just the raw command itself."
+        "Just the raw command itself. Do NOT include newlines."
     )
 }
 
@@ -203,15 +204,6 @@ def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool, 
     if not result:
         # Erase loading text and leave nothing
         tinc_uinput.backspace(LOADING_LEN)
-        return
-
-    # Special handling for cmd (type_string)
-    if paste_mode == 2:
-        # Replace newlines with '; ' to avoid executing the command
-        result = result.replace('\n', ' ; ').strip()
-        tinc_uinput.backspace(LOADING_LEN)
-        time.sleep(0.1)
-        tinc_uinput.type_string(result)
         return
 
     # Erase loading text, then paste result

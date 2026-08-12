@@ -365,3 +365,11 @@ matches:
         params:
           cmd: "ESPANSO_MODE=cmd ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
+  - regex: "\\[(?P<prompt>[^\\]]*)\\]cmdp$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE=cmdp ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
