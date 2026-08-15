@@ -79,29 +79,29 @@ matches:
   #  TRANSLATION
   # ═══════════════════════════════════════════════════════════
 
-  - regex: "\\[(?P<text>[^\\]]+)\\]hi$"
+  - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?hi)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=hi ESPANSO_TEXT='{{text}}' python3 ~/.config/espanso/scripts/translate_client.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<text>[^\\]]+)\\]hd$"
+  - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?hd)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=hd ESPANSO_TEXT='{{text}}' python3 ~/.config/espanso/scripts/translate_client.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  - regex: "\\[(?P<text>[^\\]]+)\\]hu$"
+  - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?hu)$"
     replace: "{{out}}"
     vars:
       - name: out
         type: shell
         params:
-          cmd: "ESPANSO_MODE=hu ESPANSO_TEXT='{{text}}' python3 ~/.config/espanso/scripts/translate_client.py"
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   # ═══════════════════════════════════════════════════════════
   #  AI CORE

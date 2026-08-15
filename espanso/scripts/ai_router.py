@@ -53,9 +53,9 @@ LOADING_LEN  = len(LOADING_TEXT)  # 23
 # paste_mode: 0 = Shift+Insert, 1 = Ctrl+Shift+V (Ptyxis), 2 = type_string (cmd)
 SUFFIX_MAP = {
     # Default (Shift+Insert)
-    "ai":   ("ai",   True,  False, 0),
-    "av":   ("ai",   True,  True,  0),
-    "ad":   ("ad",   True,  False, 0),
+    "ai":   ("ai",   False, False, 0),
+    "av":   ("ai",   False, True,  0),
+    "ad":   ("ad",   False, False, 0),
     "fix":  ("fix",  False, False, 0),
     "tldr": ("tldr", False, False, 0),
     "ref":  ("ref",  False, False, 0),
@@ -65,6 +65,11 @@ SUFFIX_MAP = {
     "htm":  ("htm",  False, False, 0),
     "csv":  ("csv",  False, False, 0),
     "json": ("json", False, False, 0),
+
+    # Translation
+    "hi":   ("hi",   False, False, 0),
+    "hd":   ("hd",   False, False, 0),
+    "hu":   ("hu",   False, False, 0),
 
     # Clipboard variants
     "fiv":  ("fix",  False, True,  0),
@@ -78,8 +83,8 @@ SUFFIX_MAP = {
     "csj":  ("csv",  False, True,  0),
 
     # Ptyxis variants (Ctrl+Shift+V)
-    "aip":  ("ai",   True,  False, 1),
-    "adp":  ("ad",   True,  False, 1),
+    "aip":  ("ai",   False, False, 1),
+    "adp":  ("ad",   False, False, 1),
     "fixp": ("fix",  False, False, 1),
     "tldrp":("tldr", False, False, 1),
     "refp": ("ref",  False, False, 1),
@@ -94,52 +99,24 @@ SUFFIX_MAP = {
 
 # ─── System prompts ───────────────────────────────────────────────────────────
 SYSTEM_PROMPTS = {
-    "ad": (
-        "Answer in one or two sentences maximum. Be direct and precise. "
-        "No markdown, no bullet points, no intro. Just the answer."
-    ),
-    "fix": (
-        "Fix ONLY clear spelling errors and obvious grammar mistakes. "
-        "Do NOT rephrase, restructure, or change the author's voice. "
-        "Output ONLY the corrected text, nothing else."
-    ),
-    "tldr": (
-        "Write a 1-2 sentence summary. "
-        "Output ONLY the summary, no prefix like 'TL;DR:'."
-    ),
-    "ref": (
-        "Refactor and optimize the given code. Add concise inline comments. "
-        "Output ONLY the refactored code. No explanation, no prose."
-    ),
-    "py": (
-        "Output ONLY valid Python code. No explanation, no prose. "
-        "Do NOT wrap in markdown code fences. Raw code only."
-    ),
-    "cp": (
-        "Output ONLY valid C++ code. No explanation, no prose. "
-        "Do NOT wrap in markdown code fences. Raw code only."
-    ),
-    "sh": (
-        "Output ONLY a valid Bash script. No explanation, no prose. "
-        "Do NOT wrap in markdown code fences. Raw code only."
-    ),
-    "htm": (
-        "Output ONLY valid HTML. No explanation, no prose. "
-        "Do NOT wrap in markdown code fences. Raw HTML only."
-    ),
-    "csv":  "Output ONLY valid CSV data. No prose, no code fences.",
-    "json": (
-        "Output ONLY valid JSON. No explanation, no prose. "
-        "Do NOT wrap in markdown code fences. Raw JSON only."
-    ),
-    "cmd": (
-        "Output ONLY a single valid Linux terminal command. "
-        "No explanation, no markdown fences, no prose. "
-        "Just the raw command itself. Do NOT include newlines."
-    )
+    "ai": "You are a helpful assistant. Provide a direct, concise answer without any introductory or conversational filler. Output the raw answer directly.",
+    "ad": "Provide a very precise and direct answer in 1 or 2 sentences maximum. No fluff. Do not include markdown if it's a simple text answer.",
+    "fix": "Fix all spelling and grammar mistakes in the user's text. You MUST preserve the original tone, meaning, and formatting exactly. Output ONLY the corrected text, without any explanation.",
+    "tldr": "Summarize the following text or concept in 1 or 2 concise sentences.",
+    "ref": "Refactor the provided code to be more readable, efficient, and idiomatic. Add brief, helpful comments explaining your changes. Output ONLY the code.",
+    "py": "Write an elegant, idiomatic Python script to solve the user's request. Output ONLY valid python code. No markdown formatting or explanations.",
+    "cp": "Write elegant, idiomatic C++ code to solve the user's request. Output ONLY valid C++ code. No markdown formatting or explanations.",
+    "sh": "Write a robust bash script/command to solve the user's request. Output ONLY valid bash code. No markdown formatting or explanations.",
+    "htm": "Write semantic HTML to solve the user's request. Include inline CSS/JS if requested. Output ONLY valid HTML code. No markdown formatting or explanations.",
+    "csv": "Generate CSV data for the user's request. Output ONLY valid CSV text. No markdown formatting or explanations.",
+    "json": "Generate JSON data for the user's request. Output ONLY valid JSON text. No markdown formatting or explanations.",
+    "cmd": "Write ONLY the linux terminal command to achieve the user's request. No markdown formatting. No explanations. No newlines.",
+    "hi": "Translate the following text to Hindi natively using Devanagari script. Output ONLY the translated Devanagari text. Do not add any quotes, markdown, or English text.",
+    "hd": "Transliterate the following Romanized Hindi (Hinglish) text into proper Devanagari script. Keep the exact same words, just change the script. Output ONLY the Devanagari text.",
+    "hu": "Translate the following Hinglish (or mix of English/Hindi) text into proper, natural Hindi using Devanagari script. Output ONLY the Devanagari text.",
 }
 
-CODE_MODES = {"fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad", "cmd"}
+CODE_MODES = {"hi", "hd", "hu", "fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad", "cmd"}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
