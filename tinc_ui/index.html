@@ -365,13 +365,12 @@ tr:hover td { background: var(--bg); }
 
 <nav class="topnav">
   <div class="topnav-logo">
-    <div style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">Ti</div>
+    <img src="tinc.png" alt="Tinc" style="width:28px; height:28px; border-radius:6px; object-fit: cover;">
     Tinc Control Panel
   </div>
   <div class="topnav-links">
     <a href="#shortcuts" class="topnav-link">Shortcuts</a>
     <a href="#smart-commands" class="topnav-link">Smart Commands</a>
-    <a href="#prompts" class="topnav-link">System Prompts</a>
     <a href="#files" class="topnav-link">Files</a>
     <a href="#apikeys" class="topnav-link">Settings</a>
   </div>
@@ -442,6 +441,20 @@ tr:hover td { background: var(--bg); }
               Is Code Output?
             </label>
             <div style="font-size:12px; color:var(--text-3); margin-left:28px; margin-bottom:16px;">Automatically strips markdown fences (<code>```</code>) from the output.</div>
+            
+            <label class="checkbox-label">
+              <input type="checkbox" id="ai-clipboard" onchange="document.getElementById('clip-suffix-container').style.display = this.checked ? 'block' : 'none'">
+              Requires Clipboard Context?
+            </label>
+            <div style="font-size:12px; color:var(--text-3); margin-left:28px; margin-bottom:16px;">Passes clipboard text to the prompt.</div>
+            
+            <div class="field" id="clip-suffix-container" style="display:none; margin-left:28px;">
+              <label>Clipboard Trigger Suffix</label>
+              <input type="text" id="ai-clip-suffix" placeholder="e.g. csql" pattern="[a-z0-9]+">
+            </div>
+            
+            <input type="hidden" id="ai-old-suffix">
+            <input type="hidden" id="ai-old-clip-suffix">
           </div>
           
           <div style="margin-bottom: 20px;">
@@ -463,27 +476,14 @@ tr:hover td { background: var(--bg); }
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Suffix</th><th>Web Search</th><th>Clipboard</th></tr></thead>
+          <thead><tr><th>Suffix</th><th>Clip Suffix</th><th>Web</th><th>Code</th><th>Prompt Preview</th><th style="width:80px;"></th></tr></thead>
           <tbody id="ai-shortcuts-tbody"><tr><td colspan="3" style="text-align:center; color:var(--text-3);">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
   </section>
 
-  <!-- PROMPTS -->
-  <section id="prompts">
-    <div class="section-header">
-      <h2 class="section-title">System Prompts</h2>
-      <p class="section-desc">Edit the instructions passed to the AI for each mode.</p>
-    </div>
-    
-    <div class="card prompts-grid">
-      <div class="prompts-sidebar" id="prompt-list">Loading...</div>
-      <div class="prompt-editor" id="prompt-editor-pane">
-        <div style="text-align:center; color:var(--text-3); padding-top:100px;">Select a mode from the left</div>
-      </div>
-    </div>
-  </section>
+  
 
   <!-- FILES -->
   <section id="files">
@@ -603,9 +603,6 @@ tr:hover td { background: var(--bg); }
 <div class="toast-wrap" id="toasts"></div>
 
 <script>
-let prompts = {};
-let activePrompt = null;
-
 // Utils
 const $ = id => document.getElementById(id);
 const api = async (path, method = 'GET', body = null) => {
@@ -632,7 +629,6 @@ const toggleP = (id) => {
 async function init() {
   loadShortcuts();
   loadAiShortcuts();
-  loadPrompts();
   loadTincYml();
   loadEspansoCfg();
   loadConfig();
@@ -650,15 +646,44 @@ async function loadAiShortcuts() {
   const r = await api('/api/ai-shortcuts');
   const list = r.ai_shortcuts || [];
   const tbody = $('ai-shortcuts-tbody');
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-3);">No AI shortcuts added.</td></tr>'; return; }
-  tbody.innerHTML = list.map(s => `
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-3);">No commands added.</td></tr>'; return; }
+  
+  // Store globally so we can edit
+  window.aiShortcutsData = list;
+  
+  tbody.innerHTML = list.map((s, idx) => `
     <tr>
       <td><code style="font-family:var(--mono);background:var(--bg);padding:2px 6px;border-radius:4px;">${s.suffix}</code></td>
+      <td>${s.clip_suffix ? `<code style="font-family:var(--mono);background:var(--bg);padding:2px 6px;border-radius:4px;">${s.clip_suffix}</code>` : '-'}</td>
       <td>${s.web ? '<span style="color:var(--success)">Yes</span>' : 'No'}</td>
-      <td>${s.clipboard ? 'Yes' : 'No'}</td>
+      <td>${s.is_code ? 'Yes' : 'No'}</td>
+      <td style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-2); font-size:12px;">${s.prompt}</td>
+      <td style="text-align:right;"><button class="btn btn-default btn-sm" onclick="editAiShortcut(${idx})">Edit</button></td>
     </tr>
   `).join('');
 }
+
+function editAiShortcut(idx) {
+  const s = window.aiShortcutsData[idx];
+  $('ai-suffix').value = s.suffix;
+  $('ai-old-suffix').value = s.suffix;
+  
+  $('ai-web').checked = s.web;
+  $('ai-code').checked = s.is_code;
+  
+  const clipBox = $('ai-clipboard');
+  clipBox.checked = !!s.clip_suffix;
+  $('clip-suffix-container').style.display = clipBox.checked ? 'block' : 'none';
+  
+  $('ai-clip-suffix').value = s.clip_suffix || '';
+  $('ai-old-clip-suffix').value = s.clip_suffix || '';
+  
+  $('ai-prompt').value = s.prompt;
+  
+  $('btn-add-ai').textContent = 'Update Command';
+  window.scrollTo({ top: $('smart-commands').offsetTop - 100, behavior: 'smooth' });
+}
+
 
 async function loadShortcuts() {
   const r = await api('/api/shortcuts');
@@ -695,21 +720,27 @@ $('btn-add-ai').onclick = async () => {
   const prompt = $('ai-prompt').value.trim();
   const web = $('ai-web').checked;
   const isCode = $('ai-code').checked;
+  const clip_suffix = $('ai-clipboard').checked ? $('ai-clip-suffix').value.trim() : '';
+  const old_suffix = $('ai-old-suffix').value;
+  const old_clip_suffix = $('ai-old-clip-suffix').value;
   
   if (!suffix || !prompt) return toast('Suffix and Prompt required', 'err');
   
   $('btn-add-ai').textContent = 'Creating...';
-  const r = await api('/api/ai-shortcuts/add', 'POST', {suffix, prompt, web, is_code: isCode});
+  const r = await api('/api/ai-shortcuts/add', 'POST', {suffix, prompt, web, is_code: isCode, clip_suffix, old_suffix, old_clip_suffix});
   $('btn-add-ai').textContent = 'Create AI Shortcut';
   
   if (r.ok) {
     toast('AI Shortcut created! Restarting Espanso...', 'ok');
     $('ai-suffix').value = '';
     $('ai-prompt').value = '';
+    $('ai-clip-suffix').value = '';
+    $('ai-old-suffix').value = '';
+    $('ai-old-clip-suffix').value = '';
+    $('btn-add-ai').textContent = 'Create Command';
     
     // Reload UI states
     loadAiShortcuts();
-    loadPrompts();
     loadTincYml();
     await api('/api/espanso/restart', 'POST');
     checkEspanso();
@@ -719,20 +750,7 @@ $('btn-add-ai').onclick = async () => {
 };
 
 // Prompts
-async function loadPrompts() {
-  const r = await api('/api/prompts');
-  prompts = r.prompts || {};
-  const list = $('prompt-list');
-  list.innerHTML = Object.keys(prompts).sort().map(m => 
-    `<div class="prompt-item" onclick="selectPrompt('${m}')" id="prompt-btn-${m}">${m}</div>`
-  ).join('');
-  if (activePrompt) selectPrompt(activePrompt);
-}
-
-function selectPrompt(mode) {
-  activePrompt = mode;
-  document.querySelectorAll('.prompt-item').forEach(el => el.classList.remove('active'));
-  $(`prompt-btn-${mode}`).classList.add('active');
+`).classList.add('active');
   
   $('prompt-editor-pane').innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">

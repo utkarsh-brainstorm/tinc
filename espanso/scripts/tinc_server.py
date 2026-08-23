@@ -168,30 +168,82 @@ def write_prompt_to_router(mode: str, new_prompt: str) -> bool:
     except Exception:
         return False
 
-def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool) -> bool:
+def remove_ai_shortcut_internal(suffix: str, clip_suffix: str) -> bool:
+    try:
+        router_src = read_file(AI_ROUTER)
+        yml_src = read_file(TINC_YML)
+        
+        # Remove from SUFFIX_MAP
+        router_src = re.sub(rf'\n\s*"{re.escape(suffix)}":\s*\("[^"]+",.*?(?:True|False),\s*0\),', "", router_src)
+        if clip_suffix:
+            router_src = re.sub(rf'\n\s*"{re.escape(clip_suffix)}":\s*\("[^"]+",.*?(?:True|False),\s*0\),', "", router_src)
+            
+        # Remove from SYSTEM_PROMPTS
+        router_src = re.sub(rf'\n\s*"{re.escape(suffix)}":\s*"[^"\\]*(?:\\.[^"\\]*)*",', "", router_src)
+        
+        # Remove from CODE_MODES
+        code_modes_match = re.search(r"CODE_MODES\s*=\s*\{(.*?)\}", router_src, re.DOTALL)
+        if code_modes_match:
+            inner_text = code_modes_match.group(1)
+            new_inner = re.sub(rf'"{re.escape(suffix)}"', "", inner_text)
+            new_inner = re.sub(r',\s*,', ",", new_inner).strip(', ')
+            router_src = router_src[:code_modes_match.start(1)] + new_inner + router_src[code_modes_match.end(1):]
+            
+        write_file(AI_ROUTER, router_src)
+        
+        # Remove from tinc.yml using simple string splitting
+        def remove_yml_block(text, suf):
+            lines = text.split('\n')
+            out = []
+            skip = 0
+            for line in lines:
+                if line.strip().startswith("- regex:") and f"(?P<suffix>w?{suf})$" in line:
+                    skip = 8
+                if skip > 0:
+                    skip -= 1
+                    continue
+                out.append(line)
+            return '\n'.join(out)
+            
+        yml_src = remove_yml_block(yml_src, suffix)
+        if clip_suffix:
+            yml_src = remove_yml_block(yml_src, clip_suffix)
+            
+        # Clean up excessive newlines
+        yml_src = re.sub(r'\n{3,}', '\n\n', yml_src)
+            
+        write_file(TINC_YML, yml_src)
+        return True
+    except Exception as e:
+        print("Remove error:", e)
+        return False
+
+def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool, clip_suffix: str = None, old_suffix: str = None, old_clip_suffix: str = None) -> bool:
     """Injects a new AI mode into ai_router.py and tinc.yml."""
     try:
         backup_file(AI_ROUTER)
         backup_file(TINC_YML)
         
-        # 1. Update ai_router.py
+        if old_suffix:
+            remove_ai_shortcut_internal(old_suffix, old_clip_suffix)
+            
         router_src = read_file(AI_ROUTER)
         
-        # Inject into SUFFIX_MAP
-        # Find closing brace of SUFFIX_MAP
         suffix_insert_point = re.search(r"SUFFIX_MAP\s*=\s*\{.*?(?=\n\})", router_src, re.DOTALL)
         if not suffix_insert_point: return False
+        
         map_entry = f'\n    "{suffix}": ("{suffix}", {"True" if web else "False"}, False, 0),'
+        if clip_suffix:
+            map_entry += f'\n    "{clip_suffix}": ("{suffix}", {"True" if web else "False"}, True, 0),'
+            
         router_src = router_src[:suffix_insert_point.end()] + map_entry + router_src[suffix_insert_point.end():]
         
-        # Inject into SYSTEM_PROMPTS
         prompt_insert_point = re.search(r"SYSTEM_PROMPTS\s*=\s*\{.*?(?=\n\})", router_src, re.DOTALL)
         if not prompt_insert_point: return False
         escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
         sys_entry = f'\n    "{suffix}": "{escaped_prompt}",'
         router_src = router_src[:prompt_insert_point.end()] + sys_entry + router_src[prompt_insert_point.end():]
         
-        # Inject into CODE_MODES if needed
         if is_code:
             code_modes_match = re.search(r"CODE_MODES\s*=\s*\{(.*?)\}", router_src, re.DOTALL)
             if code_modes_match:
@@ -199,16 +251,15 @@ def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool) -> bool:
                 if inner_text and not inner_text.endswith(","):
                     inner_text += ","
                 new_inner_text = inner_text + f' "{suffix}"' if not inner_text.endswith(",") else inner_text + f'"{suffix}"'
-                # Just replace the whole group
                 router_src = router_src[:code_modes_match.start(1)] + new_inner_text + router_src[code_modes_match.end(1):]
         
         write_file(AI_ROUTER, router_src)
         
-        # 2. Update tinc.yml
         yml_src = read_file(TINC_YML)
         
-        regex_entry = f'''
-  - regex: "\\\\[(?P<prompt>[^\\\\]]*)\\\\](?P<suffix>w?{suffix})$"
+        def make_yml_entry(suf):
+            return f'''
+  - regex: "\\\\[(?P<prompt>[^\\\\]]*)\\\\](?P<suffix>w?{suf})$"
     replace: "{{{{out}}}}"
     vars:
       - name: out
@@ -216,6 +267,11 @@ def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool) -> bool:
         params:
           cmd: "ESPANSO_MODE={{{{suffix}}}} ESPANSO_TEXT='{{{{prompt}}}}' python3 ~/.config/espanso/scripts/ai_router.py"
 '''
+        
+        regex_entry = make_yml_entry(suffix)
+        if clip_suffix:
+            regex_entry += make_yml_entry(clip_suffix)
+            
         insert_marker = "  # ═══════════════════════════════════════════════════════════\n  #  CLIPBOARD VARIANTS"
         if insert_marker in yml_src:
             yml_src = yml_src.replace(insert_marker, regex_entry + "\n" + insert_marker, 1)
@@ -315,19 +371,25 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json({"shortcuts": extract_shortcuts_from_yml()})
 
         if p == "/api/ai-shortcuts":
-            # Extract from SUFFIX_MAP
-            src = read_file(AI_ROUTER)
-            m = re.search(r"SUFFIX_MAP\s*=\s*\{(.+?)\n\}", src, re.DOTALL)
-            ai_list = []
-            if m:
-                for km in re.finditer(r'"(\w+)":\s*\("([^"]+)",\s*(True|False),\s*(True|False),\s*(\d+)\)', m.group(1)):
-                    ai_list.append({
-                        "suffix": km.group(1),
-                        "mode": km.group(2),
-                        "web": km.group(3) == "True",
-                        "clipboard": km.group(4) == "True",
-                    })
-            return self._json({"ai_shortcuts": ai_list})
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("ai_router", AI_ROUTER)
+            ai_router = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(ai_router)
+            
+            commands = {}
+            for suf, (mode, web, clip, _) in ai_router.SUFFIX_MAP.items():
+                if mode not in commands:
+                    commands[mode] = {
+                        "suffix": mode,
+                        "web": web,
+                        "clip_suffix": "",
+                        "is_code": mode in getattr(ai_router, 'CODE_MODES', set()),
+                        "prompt": getattr(ai_router, 'SYSTEM_PROMPTS', {}).get(mode, "")
+                    }
+                if clip:
+                    commands[mode]["clip_suffix"] = suf
+                    
+            return self._json({"ai_shortcuts": list(commands.values())})
 
         if p == "/api/tinc-yml":
             return self._json({"content": read_file(TINC_YML)})
@@ -397,9 +459,12 @@ class H(http.server.BaseHTTPRequestHandler):
             prompt = d.get("prompt", "").strip()
             web = d.get("web", False)
             is_code = d.get("is_code", False)
+            clip_suffix = d.get("clip_suffix", "").strip() or None
+            old_suffix = d.get("old_suffix", "").strip() or None
+            old_clip_suffix = d.get("old_clip_suffix", "").strip() or None
             if not suffix or not prompt:
                 return self._json({"ok": False, "error": "Suffix and prompt required"})
-            ok = add_ai_shortcut(suffix, web, prompt, is_code)
+            ok = add_ai_shortcut(suffix, web, prompt, is_code, clip_suffix, old_suffix, old_clip_suffix)
             return self._json({"ok": ok})
 
         if p == "/api/shortcuts/add":
