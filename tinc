@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# ─── Tinc Control Panel Launcher ──────────────────────────────────────────────
+# Usage: tinc           → launches the control panel UI
+#        tinc --help    → shows help
+# ──────────────────────────────────────────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+# The server script lives in the espanso/scripts directory
+# Try the standard install location first, then fallback to repo
+SERVER_SCRIPT="$HOME/.config/espanso/scripts/tinc_server.py"
+if [ ! -f "$SERVER_SCRIPT" ]; then
+    # Try repo location (for development)
+    REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+    SERVER_SCRIPT="$REPO_DIR/espanso/scripts/tinc_server.py"
+fi
+
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo "Tinc Control Panel"
+    echo ""
+    echo "Usage:"
+    echo "  tinc          Launch the Tinc Control Panel in your browser"
+    echo "  tinc --help   Show this help message"
+    echo ""
+    echo "The control panel runs on http://127.0.0.1:9876"
+    echo "Press Ctrl+C to stop the server."
+    exit 0
+fi
+
+if [ ! -f "$SERVER_SCRIPT" ]; then
+    echo "[ERR] Cannot find tinc_server.py"
+    echo "      Expected at: $SERVER_SCRIPT"
+    echo "      Try reinstalling: cd tinc && ./install.sh"
+    exit 1
+fi
+
+exec python3 "$SERVER_SCRIPT"

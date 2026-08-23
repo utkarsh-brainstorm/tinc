@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tinc Control Panel</title>
+    <style>
+        :root {
+            --bg-base: #0a0a0f;
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-gradient: linear-gradient(135deg, #7c3aed, #06b6d4);
+            --accent-color: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.3);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            color: var(--text-primary);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        h1 { font-size: 1.75rem; }
+        h2 { font-size: 1.5rem; }
+        h3 { font-size: 1.1rem; }
+        
+        .text-gradient {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Layout */
+        .sidebar {
+            width: 240px;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--card-border);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 0;
+            z-index: 10;
+        }
+
+        .brand {
+            padding: 0 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-secondary);
+            transition: var(--transition);
+            border-left: 3px solid transparent;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background: var(--card-bg);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(124, 58, 237, 0.1), transparent);
+            color: var(--text-primary);
+            border-left-color: var(--accent-color);
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem 3rem;
+            position: relative;
+        }
+
+        .page {
+            display: none;
+            animation: fadeInSlideUp 0.4s ease-out forwards;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Animations */
+        @keyframes fadeInSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Components */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            backdrop-filter: blur(20px);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+        .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            transition: var(--transition);
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.1);
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background: var(--accent-gradient);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: var(--font-main);
+        }
+
+        .btn-primary {
+            background: var(--accent-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 0 15px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+
+        /* Status Dot */
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.active {
+            background-color: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.inactive {
+            background-color: var(--error);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .badge-search { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+        .badge-clip { background: rgba(124, 58, 237, 0.2); color: #c4b5fd; }
+        .badge-mode { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+
+        /* Specific Page Styles */
+        
+        /* Dashboard */
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* API Keys */
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        .key-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .key-item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+        }
+        
+        /* Commands */
+        .category-section {
+            margin-bottom: 2rem;
+        }
+        .command-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .command-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            color: var(--accent-color);
+        }
+        .command-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: auto;
+        }
+
+        /* Prompts */
+        .prompts-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 2rem;
+            height: calc(100vh - 120px);
+        }
+        .prompts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            overflow-y: auto;
+        }
+        .prompt-item {
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .prompt-item:hover { background: var(--card-bg); }
+        .prompt-item.active {
+            background: rgba(124, 58, 237, 0.2);
+            border-left: 3px solid var(--accent-color);
+        }
+        .prompt-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .prompt-textarea {
+            flex: 1;
+            font-family: var(--font-mono);
+            resize: none;
+            padding: 15px;
+            line-height: 1.5;
+        }
+        
+        /* Logs */
+        .logs-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            height: calc(100vh - 200px);
+        }
+        .log-panel {
+            display: flex;
+            flex-direction: column;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            overflow: hidden;
+        }
+        .log-header {
+            padding: 10px 15px;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--card-border);
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .log-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: #a3b3cc;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-content.error {
+            color: #f87171;
+        }
+
+        /* Espanso */
+        .espanso-status-large {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            text-align: center;
+            gap: 2rem;
+        }
+        .pulse-ring {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid var(--success);
+        }
+        .pulse-ring.stopped {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--error);
+        }
+        .pulse-ring::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .pulse-ring.stopped::before {
+            animation: none;
+        }
+
+        /* Toast */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideInRight 0.3s ease-out forwards;
+            min-width: 250px;
+        }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--error); }
+        .toast.info { border-left: 4px solid var(--accent-color); }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        /* Result Area */
+        .result-area {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            border: 1px solid var(--card-border);
+            min-height: 100px;
+            white-space: pre-wrap;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+        }
+        
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="brand">
+            <span class="text-gradient">✨ Tinc</span>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active" data-target="dashboard">
+                📊 Dashboard
+            </li>
+            <li class="nav-item" data-target="api-keys">
+                🔑 API Keys
+            </li>
+            <li class="nav-item" data-target="commands">
+                ⚡ Commands
+            </li>
+            <li class="nav-item" data-target="prompts">
+                📝 System Prompts
+            </li>
+            <li class="nav-item" data-target="espanso">
+                ⚙️ Espanso
+            </li>
+            <li class="nav-item" data-target="logs">
+                📋 Logs
+            </li>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <!-- Dashboard -->
+        <section id="dashboard" class="page active">
+            <h1><span class="text-gradient">Dashboard</span></h1>
+            
+            <div class="grid grid-4" style="margin-bottom: 2rem;">
+                <div class="card stat-card">
+                    <span class="form-label">Espanso Status</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="dash-espanso-dot" class="status-dot inactive"></span>
+                        <span id="dash-espanso-text" class="stat-value" style="font-size: 1.2rem;">Checking...</span>
+                    </div>
+                </div>
+                <div class="card stat-card">
+                    <span class="form-label">Primary Provider</span>
+                    <span id="dash-provider" class="stat-value" style="font-size: 1.2rem;">-</span>
+                </div>
+                <div class="card stat-card">
+                    <span class="form-label">Fallback Keys (Groq)</span>
+                    <span id="dash-groq-count" class="stat-value">-</span>
+                </div>
+                <div class="card stat-card">
+                    <span class="form-label">Total Commands</span>
+                    <span id="dash-cmd-count" class="stat-value">-</span>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h2>Quick Test</h2>
+                    <div class="form-group">
+                        <label class="form-label">Prompt</label>
+                        <textarea id="quick-prompt" class="form-control" rows="3" placeholder="Enter text to process..."></textarea>
+                    </div>
+                    <div class="input-group" style="margin-bottom: 1rem;">
+                        <div style="flex: 1;">
+                            <label class="form-label">Mode</label>
+                            <select id="quick-mode" class="form-control"></select>
+                        </div>
+                        <div style="display: flex; align-items: flex-end; padding-bottom: 5px;">
+                            <label class="toggle-group">
+                                <div class="switch">
+                                    <input type="checkbox" id="quick-web">
+                                    <span class="slider"></span>
+                                </div>
+                                <span class="form-label" style="margin:0;">Web Search</span>
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="runQuickTest()" id="btn-quick-test">
+                        <span>▶ Run Test</span>
+                    </button>
+                    
+                    <div id="quick-result" class="result-area" style="display: none;"></div>
+                </div>
+                
+                <div class="card">
+                    <h2>Recent Logs</h2>
+                    <div class="log-panel" style="height: 300px;">
+                        <div id="dash-logs" class="log-content">Loading...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- API Keys -->
+        <section id="api-keys" class="page">
+            <h1><span class="text-gradient">API Configuration</span></h1>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Configure your primary and fallback AI providers.</p>
+
+            <div class="grid grid-2">
+                <!-- Gemini -->
+                <div class="card">
+                    <h2 style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #4285F4;">✦</span> Gemini (Primary)
+                    </h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="password" id="gemini-key" class="form-control" placeholder="AIzaSy...">
+                            <button class="btn btn-secondary" onclick="togglePassword('gemini-key')">👁</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Model</label>
+                        <input type="text" id="gemini-model" class="form-control" value="gemini-2.5-flash-lite">
+                    </div>
+                    
+                    <button class="btn btn-secondary btn-sm" onclick="testKey('gemini', 'gemini-key', 'gemini-model')" id="btn-test-gemini">
+                        Test Connection
+                    </button>
+                    <div id="res-test-gemini" style="margin-top:10px; font-size:0.85rem;"></div>
+                </div>
+
+                <!-- Groq -->
+                <div class="card">
+                    <h2 style="display: flex; align-items: center; gap: 10px;">
+                        <span style="color: #f97316;">⚡</span> Groq (Fallback)
+                    </h2>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Model</label>
+                        <input type="text" id="groq-model" class="form-control" value="llama-3.3-70b-versatile">
+                    </div>
+                    
+                    <label class="form-label">API Keys</label>
+                    <div id="groq-keys-container" class="key-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                    
+                    <button class="btn btn-secondary btn-sm" onclick="addGroqKeyField()">+ Add Groq Key</button>
+                </div>
+            </div>
+            
+            <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="saveConfig()" id="btn-save-config">
+                    💾 Save Configuration
+                </button>
+            </div>
+        </section>
+
+        <!-- Commands -->
+        <section id="commands" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h1><span class="text-gradient">Available Commands</span></h1>
+                <div class="badge badge-search" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    💡 Prefix any command with 'w' for Web Search (e.g., :wai)
+                </div>
+            </div>
+            
+            <div id="commands-container">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+
+        <!-- System Prompts -->
+        <section id="prompts" class="page">
+            <h1><span class="text-gradient">System Prompts</span></h1>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Edit the behavior instructions for each mode.</p>
+            
+            <div class="prompts-layout">
+                <div class="card" style="padding: 1rem;">
+                    <h3 style="margin-bottom: 1rem; padding-left: 5px;">Modes</h3>
+                    <div id="prompts-list" class="prompts-list">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                
+                <div class="card prompt-editor">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h2 id="active-prompt-title" style="margin: 0;">Select a mode</h2>
+                        <button class="btn btn-primary btn-sm" onclick="savePrompt()" id="btn-save-prompt">💾 Save Prompt</button>
+                    </div>
+                    
+                    <textarea id="prompt-content" class="form-control prompt-textarea" placeholder="Select a mode from the left to edit its prompt..."></textarea>
+                    
+                    <div style="border-top: 1px solid var(--card-border); padding-top: 15px;">
+                        <h3>Test this prompt</h3>
+                        <div class="input-group">
+                            <textarea id="prompt-test-input" class="form-control" rows="2" placeholder="Input text for testing..."></textarea>
+                            <button class="btn btn-secondary" onclick="testCurrentPrompt()" id="btn-test-prompt">▶ Run</button>
+                        </div>
+                        <div id="prompt-test-result" class="result-area" style="display: none; margin-top: 10px;"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Espanso -->
+        <section id="espanso" class="page">
+            <h1><span class="text-gradient">Espanso Integration</span></h1>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Tinc uses Espanso to detect shortcuts and inject text anywhere.</p>
+            
+            <div class="card espanso-status-large">
+                <div id="espanso-pulse" class="pulse-ring">
+                    <!-- Icon -->
+                    <span id="espanso-icon">⏱</span>
+                </div>
+                
+                <div>
+                    <h2 id="espanso-status-text" style="margin-bottom: 0.5rem;">Checking Status...</h2>
+                    <p style="color: var(--text-secondary);">The daemon that listens for :shortcuts</p>
+                </div>
+                
+                <button class="btn btn-primary" onclick="restartEspanso()" id="btn-restart-espanso">
+                    🔄 Restart Espanso
+                </button>
+                
+                <div id="espanso-log" class="result-area" style="display: none; width: 100%; max-width: 600px; text-align: left;"></div>
+            </div>
+        </section>
+
+        <!-- Logs -->
+        <section id="logs" class="page">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <h1><span class="text-gradient">System Logs</span></h1>
+                
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <label class="toggle-group">
+                        <div class="switch">
+                            <input type="checkbox" id="auto-refresh-logs" onchange="toggleAutoRefresh()">
+                            <span class="slider"></span>
+                        </div>
+                        <span class="form-label" style="margin:0;">Auto-refresh</span>
+                    </label>
+                    <button class="btn btn-secondary btn-sm" onclick="fetchLogs()">🔄 Refresh</button>
+                </div>
+            </div>
+            
+            <div class="logs-layout">
+                <div class="log-panel">
+                    <div class="log-header">
+                        <span>Standard Output (stdout)</span>
+                    </div>
+                    <div id="log-stdout" class="log-content">Loading...</div>
+                </div>
+                
+                <div class="log-panel">
+                    <div class="log-header">
+                        <span>Standard Error (stderr)</span>
+                    </div>
+                    <div id="log-stderr" class="log-content error">Loading...</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast-container"></div>
+
+    <script>
+        // --- State ---
+        let currentConfig = {};
+        let allSuffixes = {};
+        let allPrompts = {};
+        let activePromptMode = null;
+        let logInterval = null;
+
+        // --- Navigation ---
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                // Update active nav
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                // Show page
+                const target = item.getAttribute('data-target');
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.getElementById(target).classList.add('active');
+                
+                // Page specific logic
+                if (target === 'logs') {
+                    fetchLogs();
+                    if(document.getElementById('auto-refresh-logs').checked) toggleAutoRefresh();
+                } else {
+                    clearInterval(logInterval);
+                }
+                
+                if (target === 'espanso') {
+                    checkEspansoStatus();
+                }
+            });
+        });
+
+        // --- Init ---
+        window.addEventListener('DOMContentLoaded', async () => {
+            await Promise.all([
+                fetchConfig(),
+                fetchSuffixes(),
+                fetchPrompts()
+            ]);
+            checkEspansoStatus();
+            fetchLogs(true); // For dashboard
+        });
+
+        // --- Toast System ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+            toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- Helpers ---
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            try {
+                const options = { method, headers: {} };
+                if (body) {
+                    options.headers['Content-Type'] = 'application/json';
+                    options.body = JSON.stringify(body);
+                }
+                const res = await fetch(endpoint, options);
+                const data = await res.json();
+                return { success: res.ok, data };
+            } catch (err) {
+                console.error(err);
+                return { success: false, error: err.message };
+            }
+        }
+
+        function setButtonLoading(btnId, isLoading, text = '') {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            if (isLoading) {
+                btn.dataset.originalText = btn.innerHTML;
+                btn.innerHTML = `<span class="loading-spinner"></span> Loading...`;
+                btn.disabled = true;
+            } else {
+                btn.innerHTML = btn.dataset.originalText || text;
+                btn.disabled = false;
+            }
+        }
+
+        function togglePassword(id) {
+            const el = document.getElementById(id);
+            if (el.type === 'password') el.type = 'text';
+            else el.type = 'password';
+        }
+
+        // --- Data Fetching & Population ---
+        async function fetchConfig() {
+            const res = await apiCall('/api/config');
+            if (res.success) {
+                currentConfig = res.data;
+                
+                // Populate Dashboard
+                document.getElementById('dash-provider').innerText = currentConfig.has_gemini_key ? 'Gemini' : (currentConfig.has_groq_keys ? 'Groq' : 'None Configured');
+                document.getElementById('dash-groq-count').innerText = currentConfig.groq_key_count || 0;
+                
+                // Populate Keys Section
+                document.getElementById('gemini-key').value = currentConfig.gemini_api_key || '';
+                document.getElementById('gemini-model').value = currentConfig.gemini_model || 'gemini-2.5-flash-lite';
+                
+                document.getElementById('groq-model').value = currentConfig.groq_model || 'llama-3.3-70b-versatile';
+                
+                const groqContainer = document.getElementById('groq-keys-container');
+                groqContainer.innerHTML = '';
+                if (currentConfig.groq_api_keys && currentConfig.groq_api_keys.length > 0) {
+                    currentConfig.groq_api_keys.forEach(key => addGroqKeyField(key));
+                } else {
+                    addGroqKeyField(); // at least one empty
+                }
+            }
+        }
+
+        async function fetchSuffixes() {
+            const res = await apiCall('/api/suffixes');
+            if (res.success) {
+                allSuffixes = res.data.suffixes || {};
+                
+                document.getElementById('dash-cmd-count').innerText = Object.keys(allSuffixes).length;
+                
+                // Populate Quick Test dropdown
+                const select = document.getElementById('quick-mode');
+                select.innerHTML = '';
+                const modes = new Set(Object.values(allSuffixes).map(s => s.mode));
+                Array.from(modes).sort().forEach(mode => {
+                    const opt = document.createElement('option');
+                    opt.value = mode;
+                    opt.textContent = mode;
+                    select.appendChild(opt);
+                });
+
+                renderCommands();
+            }
+        }
+
+        async function fetchPrompts() {
+            const res = await apiCall('/api/prompts');
+            if (res.success) {
+                allPrompts = res.data.prompts || {};
+                renderPromptsList();
+            }
+        }
+
+        // --- Actions ---
+
+        // Config
+        function addGroqKeyField(val = '') {
+            const container = document.getElementById('groq-keys-container');
+            const idx = container.children.length;
+            const div = document.createElement('div');
+            div.className = 'key-item';
+            div.innerHTML = `
+                <div class="input-group" style="flex:1;">
+                    <input type="password" class="form-control groq-key-input" value="${val}" placeholder="gsk_...">
+                    <button class="btn btn-secondary" onclick="togglePassword(this.previousElementSibling.id)">👁</button>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="testKey('groq', this.parentElement.querySelector('input').id, 'groq-model')">Test</button>
+                <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
+            `;
+            // unique id for toggle
+            const input = div.querySelector('input');
+            input.id = 'groq-key-' + Math.random().toString(36).substr(2, 9);
+            container.appendChild(div);
+        }
+
+        async function saveConfig() {
+            setButtonLoading('btn-save-config', true);
+            
+            const geminiKey = document.getElementById('gemini-key').value;
+            const geminiModel = document.getElementById('gemini-model').value;
+            const groqModel = document.getElementById('groq-model').value;
+            
+            const groqKeys = Array.from(document.querySelectorAll('.groq-key-input'))
+                                .map(el => el.value)
+                                .filter(val => val.trim() !== '' && val !== '••masked'); // don't send masked back literally unless handled by backend, assuming backend handles masked strings or we only send new. Usually, if it's masked, we don't send it if unchanged. Let's send it, assuming backend ignores '••masked'.
+
+            const payload = {
+                gemini_api_key: geminiKey,
+                gemini_model: geminiModel,
+                groq_model: groqModel,
+                groq_api_keys: groqKeys
+            };
+
+            const res = await apiCall('/api/config', 'POST', payload);
+            setButtonLoading('btn-save-config', false);
+            
+            if (res.success) {
+                showToast('Configuration saved successfully', 'success');
+                fetchConfig(); // reload
+            } else {
+                showToast('Failed to save config: ' + res.error, 'error');
+            }
+        }
+
+        async function testKey(provider, inputId, modelId) {
+            const key = document.getElementById(inputId).value;
+            const model = document.getElementById(modelId).value;
+            
+            if (!key || key.includes('masked')) {
+                showToast('Please enter an actual API key to test.', 'warning');
+                return;
+            }
+
+            let btnId = inputId === 'gemini-key' ? 'btn-test-gemini' : null;
+            let resultEl = inputId === 'gemini-key' ? document.getElementById('res-test-gemini') : null;
+
+            if (btnId) setButtonLoading(btnId, true);
+            
+            const res = await apiCall('/api/test-key', 'POST', { provider, key, model });
+            
+            if (btnId) setButtonLoading(btnId, false);
+
+            if (res.success && res.data.success) {
+                showToast(`${provider} key is valid!`, 'success');
+                if (resultEl) {
+                    resultEl.style.color = 'var(--success)';
+                    resultEl.innerText = 'Success: ' + (res.data.response ? res.data.response.substring(0, 50) + '...' : '');
+                }
+            } else {
+                showToast(`${provider} key test failed.`, 'error');
+                if (resultEl) {
+                    resultEl.style.color = 'var(--error)';
+                    resultEl.innerText = 'Error: ' + (res.data.error || 'Unknown error');
+                }
+            }
+        }
+
+        // Commands
+        function renderCommands() {
+            const container = document.getElementById('commands-container');
+            container.innerHTML = '';
+
+            // Group by category based on naming/mode (approximation based on rules)
+            const categories = {
+                'AI Core': ['ai', 'av', 'ad'],
+                'Writing': ['fix', 'tldr'],
+                'Code': ['ref', 'py', 'cp', 'sh', 'htm', 'csv', 'json'],
+                'Translation': ['hi', 'hd', 'hu'],
+                'Clipboard Variants': ['fiv', 'tldv', 'rev', 'pv', 'cv', 'sv', 'htv', 'jsov', 'csj'],
+                'Terminal/Ptyxis': ['aip', 'adp', 'fixp', 'tldrp', 'refp', 'pyp', 'cpp', 'shp', 'cmdp', 'cmd']
+            };
+
+            const categorized = {};
+            const unassigned = {};
+
+            Object.entries(allSuffixes).forEach(([suffix, data]) => {
+                let assigned = false;
+                for (const [cat, sufs] of Object.entries(categories)) {
+                    if (sufs.includes(suffix)) {
+                        if (!categorized[cat]) categorized[cat] = [];
+                        categorized[cat].push({suffix, ...data});
+                        assigned = true;
+                        break;
+                    }
+                }
+                if (!assigned) {
+                    unassigned[suffix] = data;
+                }
+            });
+
+            const allCats = {...categorized};
+            if (Object.keys(unassigned).length > 0) allCats['Other'] = Object.entries(unassigned).map(([s,d])=>({suffix:s, ...d}));
+
+            for (const [catName, items] of Object.entries(allCats)) {
+                if (items.length === 0) continue;
+                
+                const catDiv = document.createElement('div');
+                catDiv.className = 'category-section';
+                catDiv.innerHTML = `<h2 style="margin-bottom:1rem; border-bottom:1px solid var(--card-border); padding-bottom:0.5rem;">${catName}</h2>`;
+                
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-4';
+                
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card command-card';
+                    card.innerHTML = `
+                        <div class="command-title">:${item.suffix}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 5px;">
+                            Mode: <span style="color:var(--text-primary)">${item.mode}</span>
+                        </div>
+                        <div class="command-badges">
+                            ${item.web_search ? '<span class="badge badge-search">Web</span>' : ''}
+                            ${item.use_clipboard ? '<span class="badge badge-clip">Clipboard</span>' : ''}
+                            ${item.paste_mode ? `<span class="badge badge-mode">${item.paste_mode_label || item.paste_mode}</span>` : ''}
+                        </div>
+                    `;
+                    grid.appendChild(card);
+                });
+                
+                catDiv.appendChild(grid);
+                container.appendChild(catDiv);
+            }
+        }
+
+        // Prompts
+        function renderPromptsList() {
+            const list = document.getElementById('prompts-list');
+            list.innerHTML = '';
+            
+            Object.keys(allPrompts).sort().forEach(mode => {
+                const item = document.createElement('div');
+                item.className = 'prompt-item';
+                item.innerText = mode;
+                item.onclick = () => selectPrompt(mode, item);
+                list.appendChild(item);
+            });
+        }
+
+        function selectPrompt(mode, el) {
+            document.querySelectorAll('.prompt-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            
+            activePromptMode = mode;
+            document.getElementById('active-prompt-title').innerText = `Mode: ${mode}`;
+            document.getElementById('prompt-content').value = allPrompts[mode];
+            document.getElementById('prompt-test-result').style.display = 'none';
+        }
+
+        async function savePrompt() {
+            if (!activePromptMode) return;
+            setButtonLoading('btn-save-prompt', true);
+            
+            const content = document.getElementById('prompt-content').value;
+            const res = await apiCall('/api/prompts', 'POST', { mode: activePromptMode, prompt: content });
+            
+            setButtonLoading('btn-save-prompt', false);
+            
+            if (res.success) {
+                showToast('Prompt saved', 'success');
+                allPrompts[activePromptMode] = content;
+            } else {
+                showToast('Failed to save prompt', 'error');
+            }
+        }
+
+        async function testCurrentPrompt() {
+            if (!activePromptMode) return;
+            setButtonLoading('btn-test-prompt', true);
+            
+            const input = document.getElementById('prompt-test-input').value;
+            const resEl = document.getElementById('prompt-test-result');
+            resEl.style.display = 'block';
+            resEl.innerText = 'Running...';
+            
+            const res = await apiCall('/api/test', 'POST', {
+                prompt: input,
+                mode: activePromptMode,
+                web_search: false
+            });
+            
+            setButtonLoading('btn-test-prompt', false);
+            
+            if (res.success && !res.data.error) {
+                resEl.style.color = 'var(--text-primary)';
+                resEl.innerText = res.data.result;
+            } else {
+                resEl.style.color = 'var(--error)';
+                resEl.innerText = res.error || res.data.error;
+            }
+        }
+
+        // Quick Test
+        async function runQuickTest() {
+            setButtonLoading('btn-quick-test', true);
+            
+            const input = document.getElementById('quick-prompt').value;
+            const mode = document.getElementById('quick-mode').value;
+            const web = document.getElementById('quick-web').checked;
+            
+            const resEl = document.getElementById('quick-result');
+            resEl.style.display = 'block';
+            resEl.innerText = 'Processing...';
+            
+            const res = await apiCall('/api/test', 'POST', {
+                prompt: input,
+                mode: mode,
+                web_search: web
+            });
+            
+            setButtonLoading('btn-quick-test', false);
+            
+            if (res.success && !res.data.error) {
+                resEl.style.color = 'var(--text-primary)';
+                resEl.innerText = res.data.result;
+            } else {
+                resEl.style.color = 'var(--error)';
+                resEl.innerText = res.error || res.data.error;
+            }
+        }
+
+        // Espanso
+        async function checkEspansoStatus() {
+            const res = await apiCall('/api/espanso/status');
+            const dashDot = document.getElementById('dash-espanso-dot');
+            const dashText = document.getElementById('dash-espanso-text');
+            const mainPulse = document.getElementById('espanso-pulse');
+            const mainText = document.getElementById('espanso-status-text');
+            const icon = document.getElementById('espanso-icon');
+            
+            if (res.success && res.data) {
+                const running = res.data.running;
+                if (running) {
+                    dashDot.className = 'status-dot active';
+                    dashText.innerText = 'Running';
+                    dashText.style.color = 'var(--success)';
+                    
+                    mainPulse.className = 'pulse-ring';
+                    mainText.innerText = 'Espanso is Running';
+                    mainText.style.color = 'var(--success)';
+                    icon.innerText = '✅';
+                } else {
+                    dashDot.className = 'status-dot inactive';
+                    dashText.innerText = 'Stopped';
+                    dashText.style.color = 'var(--error)';
+                    
+                    mainPulse.className = 'pulse-ring stopped';
+                    mainText.innerText = 'Espanso is Stopped';
+                    mainText.style.color = 'var(--error)';
+                    icon.innerText = '❌';
+                }
+            }
+        }
+
+        async function restartEspanso() {
+            setButtonLoading('btn-restart-espanso', true);
+            const resEl = document.getElementById('espanso-log');
+            resEl.style.display = 'block';
+            resEl.innerText = 'Restarting...';
+            
+            const res = await apiCall('/api/espanso/restart', 'POST');
+            
+            setButtonLoading('btn-restart-espanso', false);
+            checkEspansoStatus();
+            
+            if (res.success) {
+                showToast('Restart command sent', 'info');
+                resEl.innerText = res.data.output || 'Done.';
+            } else {
+                showToast('Failed to restart', 'error');
+                resEl.innerText = res.error || 'Error';
+            }
+        }
+
+        // Logs
+        async function fetchLogs(forDashboard = false) {
+            const res = await apiCall('/api/logs');
+            if (res.success && res.data) {
+                if (forDashboard) {
+                    const dashLogs = document.getElementById('dash-logs');
+                    dashLogs.innerText = (res.data.stdout || '').split('\n').slice(-15).join('\n') || 'No recent logs.';
+                } else {
+                    const outEl = document.getElementById('log-stdout');
+                    const errEl = document.getElementById('log-stderr');
+                    
+                    const isOutScrolled = outEl.scrollHeight - outEl.clientHeight <= outEl.scrollTop + 1;
+                    const isErrScrolled = errEl.scrollHeight - errEl.clientHeight <= errEl.scrollTop + 1;
+                    
+                    outEl.innerText = res.data.stdout || 'No stdout logs.';
+                    errEl.innerText = res.data.stderr || 'No stderr logs.';
+                    
+                    if (isOutScrolled) outEl.scrollTop = outEl.scrollHeight;
+                    if (isErrScrolled) errEl.scrollTop = errEl.scrollHeight;
+                }
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const isChecked = document.getElementById('auto-refresh-logs').checked;
+            if (isChecked) {
+                logInterval = setInterval(() => fetchLogs(false), 3000);
+                showToast('Auto-refresh enabled', 'success');
+            } else {
+                clearInterval(logInterval);
+                showToast('Auto-refresh disabled', 'info');
+            }
+        }
+
+    </script>
+</body>
+</html>

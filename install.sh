@@ -73,13 +73,14 @@ fi
 
 echo -e "${YELLOW}Preferred Primary Model [default: gemini-2.5-flash]: ${RESET}\c"
 read -r PREF_MODEL
-PREF_MODEL=${PREF_MODEL:-gemini-2.5-flash}
+PREF_MODEL=${PREF_MODEL:-gemini-2.5-flash-lite}
 
 cat > "$TINC_CFG_DIR/config.json" <<EOF
 {
-  "api_key": "$PRIMARY_API_KEY",
-  "model": "$PREF_MODEL",
-  "fallback_keys": []
+  "gemini_api_key": "$PRIMARY_API_KEY",
+  "gemini_model": "$PREF_MODEL",
+  "groq_api_keys": [],
+  "groq_model": "llama-3.3-70b-versatile"
 }
 EOF
 success "Configuration saved to ~/.config/tinc/config.json"
@@ -97,6 +98,15 @@ wget -q -O "$ESPANSO_CFG/match/tinc.yml"              "$REPO_URL/espanso/match/t
 wget -q -O "$ESPANSO_CFG/scripts/ai_router.py"        "$REPO_URL/espanso/scripts/ai_router.py"
 wget -q -O "$ESPANSO_CFG/scripts/tinc_client.py"      "$REPO_URL/espanso/scripts/tinc_client.py"
 wget -q -O "$ESPANSO_CFG/scripts/tinc_uinput.py"      "$REPO_URL/espanso/scripts/tinc_uinput.py"
+wget -q -O "$ESPANSO_CFG/scripts/tinc_server.py"      "$REPO_URL/espanso/scripts/tinc_server.py"
+
+info "Downloading Tinc Control Panel UI..."
+mkdir -p "$ESPANSO_CFG/../tinc_ui"
+wget -q -O "$ESPANSO_CFG/../tinc_ui/index.html"       "$REPO_URL/tinc_ui/index.html"
+
+info "Installing 'tinc' command..."
+wget -q -O "$HOME/.local/bin/tinc"                    "$REPO_URL/tinc"
+chmod +x "$HOME/.local/bin/tinc"
 
 # Neutralize Espanso's default base.yml which would otherwise conflict with tinc.yml.
 cat > "$ESPANSO_CFG/match/base.yml" << 'BASEYML'
@@ -122,8 +132,12 @@ echo -e "${BOLD}${GREEN}══════════════════�
 echo -e "${BOLD}${GREEN}  Tinc Installed Successfully! 🎉${RESET}"
 echo -e "${BOLD}${GREEN}════════════════════════════════════════${RESET}"
 echo ""
+echo -e "${BOLD}Control Panel:${RESET}"
+echo -e "  ${CYAN}tinc${RESET}              → Launch the Tinc Control Panel UI"
+echo ""
 echo -e "${BOLD}AI Shortcuts:${RESET}"
-echo -e "  ${CYAN}[question]ai${RESET}      → General AI Answer (w/ Web Search)"
+echo -e "  ${CYAN}[question]ai${RESET}      → General AI Answer"
+echo -e "  ${CYAN}[question]wai${RESET}     → AI + Web Search"
 echo -e "  ${CYAN}[script]sh${RESET}        → Raw bash script generation"
 echo -e "  ${CYAN}[command]cmd${RESET}      → Linux terminal command"
 echo -e "  ${CYAN}[prompt]adp${RESET}       → AI in GTK4/Ptyxis mode"
@@ -133,5 +147,6 @@ echo -e "  ${CYAN}[apple]hi${RESET}   → सेब  (Hindi)"
 echo -e "  ${CYAN}[namaste]hd${RESET} → नमस्ते  (Devanagari)"
 echo -e ""
 echo -e "Configuration: ${CYAN}~/.config/tinc/config.json${RESET}"
+echo -e "             ${CYAN}tinc${RESET} (or visit http://127.0.0.1:9876)"
 echo -e "Restart command: ${CYAN}espanso restart${RESET}"
 echo -e "${YELLOW}Note: You may need to logout and log back in for /dev/uinput permissions to take full effect.${RESET}"
