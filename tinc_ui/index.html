@@ -8,259 +8,207 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #f5f5f4;
+  --bg: #f5f5f7;
   --surface: #ffffff;
-  --border: #e4e4e7;
-  --border-focus: #3b82f6;
-  --text: #18181b;
-  --text-2: #71717a;
-  --text-3: #a1a1aa;
-  --accent: #2563eb;
-  --accent-bg: #eff6ff;
-  --danger: #dc2626;
-  --danger-bg: #fef2f2;
-  --success: #16a34a;
-  --success-bg: #f0fdf4;
-  --warn-bg: #fffbeb;
-  --warn: #d97706;
-  --sidebar-w: 220px;
-  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-  --mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
-  --radius: 8px;
-  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --border: #e5e5ea;
+  --border-focus: #007aff;
+  --text: #1d1d1f;
+  --text-2: #86868b;
+  --text-3: #aeaeb2;
+  --accent: #007aff;
+  --accent-bg: #e5f1ff;
+  --danger: #ff3b30;
+  --danger-bg: #ffeceb;
+  --success: #34c759;
+  --success-bg: #ebf9ee;
+  --warn-bg: #fef0db;
+  --warn: #ff9500;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  --radius: 14px;
+  --radius-sm: 8px;
+  --shadow: 0 4px 16px rgba(0,0,0,.04), 0 1px 4px rgba(0,0,0,.02);
+  --shadow-hover: 0 8px 24px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.04);
 }
 
 body {
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 15px;
   background: var(--bg);
   color: var(--text);
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
+  overflow-y: scroll;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ── Sidebar ─────────────────────────────── */
-.sidebar {
-  width: var(--sidebar-w);
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  overflow-y: auto;
-}
-
-.sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 20px 16px 16px;
+/* ── Top Navigation ──────────────────────── */
+.topnav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
-}
-
-.sidebar-logo-mark {
-  width: 28px;
-  height: 28px;
-  background: var(--accent);
-  border-radius: 7px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 13px;
-  font-weight: 700;
+  padding: 0 40px;
+  z-index: 100;
+  justify-content: space-between;
+}
+
+.topnav-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  font-size: 18px;
   letter-spacing: -0.5px;
-  flex-shrink: 0;
 }
 
-.sidebar-logo-text {
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: -0.3px;
-}
-
-.sidebar-logo-sub {
-  font-size: 11px;
-  color: var(--text-3);
-  line-height: 1;
-}
-
-.nav {
-  padding: 10px 8px;
-  flex: 1;
-}
-
-.nav-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  padding: 12px 8px 4px;
-}
-
-.nav-item {
+.topnav-links {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--text-2);
-  font-weight: 500;
-  transition: background 0.1s, color 0.1s;
-  user-select: none;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: left;
+  gap: 24px;
 }
 
-.nav-item:hover { background: var(--bg); color: var(--text); }
-.nav-item.active { background: var(--accent-bg); color: var(--accent); }
+.topnav-link {
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
 
-.nav-icon { font-size: 14px; width: 16px; text-align: center; flex-shrink: 0; }
+.topnav-link:hover {
+  color: var(--text);
+}
 
 .espanso-status {
-  padding: 12px 16px;
-  border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--bg);
+  padding: 6px 12px;
+  border-radius: 20px;
 }
 
 .dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--text-3);
-  flex-shrink: 0;
 }
 .dot.on { background: var(--success); }
 .dot.off { background: var(--danger); }
 
-/* ── Main ─────────────────────────────────── */
+/* ── Main Container ──────────────────────── */
 .main {
-  flex: 1;
-  overflow-y: auto;
-  background: var(--bg);
+  max-width: 900px;
+  margin: 100px auto 100px;
+  padding: 0 20px;
   display: flex;
   flex-direction: column;
+  gap: 40px;
 }
 
-.topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 28px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+/* ── Typography & Headings ────────────────── */
+.section-header {
+  margin-bottom: 24px;
+  padding-left: 8px;
 }
 
-.topbar-title {
+.section-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  margin-bottom: 8px;
+}
+
+.section-desc {
   font-size: 16px;
-  font-weight: 600;
+  color: var(--text-2);
   letter-spacing: -0.3px;
 }
 
-.topbar-desc {
-  font-size: 13px;
-  color: var(--text-2);
-  margin-top: 1px;
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.content {
-  padding: 24px 28px;
-  flex: 1;
-}
-
-/* ── Pages ────────────────────────────────── */
-.page { display: none; }
-.page.active { display: block; }
-
-/* ── Components ───────────────────────────── */
+/* ── Cards ────────────────────────────────── */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+  border: 1px solid var(--border);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-hover);
 }
 
 .card-header {
-  padding: 14px 18px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: var(--surface);
 }
 
 .card-title {
-  font-size: 13px;
+  font-size: 17px;
   font-weight: 600;
+  letter-spacing: -0.4px;
 }
 
-.card-body { padding: 18px; }
+.card-body {
+  padding: 24px;
+}
 
-/* Buttons */
+/* ── Buttons ──────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 7px 13px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: all 0.1s;
-  white-space: nowrap;
+  transition: all 0.2s;
   font-family: var(--font);
-  line-height: 1;
+  letter-spacing: -0.2px;
 }
 
 .btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: #1d4ed8; }
-.btn-primary:active { background: #1e40af; }
+.btn-primary:hover { background: #006ae6; transform: scale(0.98); }
 
-.btn-default {
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-.btn-default:hover { background: var(--bg); }
+.btn-default { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-default:hover { background: #e5e5ea; }
 
-.btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; }
-.btn-danger:hover { background: #fee2e2; }
+.btn-danger { background: var(--danger-bg); color: var(--danger); }
+.btn-danger:hover { background: #ffd6d4; }
 
 .btn-ghost { background: transparent; color: var(--text-2); }
 .btn-ghost:hover { background: var(--bg); color: var(--text); }
 
-.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
 
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Form elements */
-.field { margin-bottom: 16px; }
+/* ── Forms ────────────────────────────────── */
+.field { margin-bottom: 20px; }
 .field:last-child { margin-bottom: 0; }
 
 label {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-2);
-  margin-bottom: 5px;
+  margin-bottom: 8px;
+  letter-spacing: -0.2px;
 }
 
 input[type=text],
@@ -268,931 +216,631 @@ input[type=password],
 select,
 textarea {
   width: 100%;
-  padding: 8px 11px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
   font-family: var(--font);
   color: var(--text);
-  background: var(--surface);
+  background: var(--bg);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  line-height: 1.5;
+  transition: all 0.2s;
 }
 
 input:focus, select:focus, textarea:focus {
+  background: var(--surface);
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+  box-shadow: 0 0 0 4px rgba(0,122,255,.1);
 }
 
 textarea {
   resize: vertical;
-  min-height: 80px;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.6;
+  min-height: 100px;
+  line-height: 1.5;
 }
 
-.input-row {
+.checkbox-label {
   display: flex;
-  gap: 8px;
-  align-items: flex-end;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 400;
+  cursor: pointer;
+  margin-bottom: 12px;
 }
+.checkbox-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.input-row { display: flex; gap: 12px; align-items: flex-end; }
 .input-row > :first-child { flex: 1; }
 
-/* Table */
+/* ── Tables ───────────────────────────────── */
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-
-th {
-  text-align: left;
-  padding: 9px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-
-td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-  vertical-align: middle;
-}
-
+th { text-align: left; padding: 12px 24px; font-size: 12px; font-weight: 600; color: var(--text-3); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+td { padding: 16px 24px; border-bottom: 1px solid var(--border); font-size: 14px; }
 tr:last-child td { border-bottom: 0; }
-tr:hover td { background: #fafafa; }
+tr:hover td { background: var(--bg); }
 
-.mono { font-family: var(--mono); font-size: 12px; }
-
-/* Badge */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  background: var(--bg);
-  color: var(--text-2);
-  border: 1px solid var(--border);
-}
-.badge-blue { background: var(--accent-bg); color: var(--accent); border-color: #bfdbfe; }
-.badge-green { background: var(--success-bg); color: var(--success); border-color: #bbf7d0; }
-
-/* Code editor area */
-.code-editor {
-  width: 100%;
-  background: #fafafa;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.code-editor-bar {
-  padding: 9px 14px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--text-2);
-}
-
+/* ── Editor ───────────────────────────────── */
 .code-editor textarea {
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.7;
+  font-size: 13px;
+  line-height: 1.6;
   border: none;
-  border-radius: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
   background: #fafafa;
-  resize: none;
-  min-height: 420px;
-  width: 100%;
-  padding: 14px 16px;
-  box-shadow: none;
-  color: #27272a;
+  min-height: 300px;
 }
-
-.code-editor textarea:focus {
-  box-shadow: none;
-  border-color: transparent;
-}
-
-/* Prompts layout */
-.prompts-layout {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.prompt-list { display: flex; flex-direction: column; gap: 1px; }
-
-.prompt-list-item {
-  padding: 8px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-family: var(--mono);
-  color: var(--text-2);
-  transition: all 0.1s;
-  border: 1px solid transparent;
-}
-.prompt-list-item:hover { background: var(--bg); color: var(--text); }
-.prompt-list-item.active { background: var(--accent-bg); color: var(--accent); border-color: #bfdbfe; }
-
-.prompt-editor-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Toast */
-.toast-wrap {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 999;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  pointer-events: none;
-}
-
-.toast {
-  background: var(--text);
-  color: #fff;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0,0,0,.2);
-  animation: slide-in 0.2s ease;
-  pointer-events: all;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 320px;
-}
-.toast.ok { background: #15803d; }
-.toast.err { background: var(--danger); }
-
-@keyframes slide-in {
-  from { transform: translateY(8px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-/* Grid layouts */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.stack { display: flex; flex-direction: column; gap: 16px; }
-
-/* Key row (groq keys list) */
-.key-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 0;
+.editor-bar {
+  padding: 12px 24px;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
-}
-.key-row:last-child { border-bottom: 0; }
-.key-row input { flex: 1; }
-
-/* Divider */
-hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-
-/* Empty state */
-.empty {
-  text-align: center;
-  padding: 48px 20px;
-  color: var(--text-3);
-}
-.empty-icon { font-size: 32px; margin-bottom: 8px; }
-.empty-text { font-size: 13px; }
-
-/* Logs */
-.log-pane {
-  background: #18181b;
-  border-radius: var(--radius);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.log-pane-head {
-  background: #27272a;
-  padding: 8px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  color: #a1a1aa;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.log-pane-body {
-  padding: 14px;
-  font-family: var(--mono);
-  font-size: 12px;
-  line-height: 1.7;
-  color: #d4d4d8;
-  max-height: 320px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
+.editor-bar-actions {
+  display: flex;
+  gap: 8px;
 }
-.log-pane-body.err { color: #f87171; }
 
-/* Info note */
-.note {
-  background: var(--warn-bg);
-  border: 1px solid #fde68a;
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-size: 12.5px;
-  color: #92400e;
+/* ── Prompts Grid ─────────────────────────── */
+.prompts-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 400px;
 }
-.note.info { background: var(--accent-bg); border-color: #bfdbfe; color: #1e40af; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 10px; }
-
-/* Test bar at bottom of sidebar */
-.quick-test {
+.prompts-sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--bg);
   padding: 12px;
-  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 500px;
+  overflow-y: auto;
 }
-.quick-test textarea {
-  min-height: 52px;
-  resize: none;
-  font-size: 12.5px;
+.prompt-item {
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: var(--mono);
+  color: var(--text-2);
 }
-.quick-test-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--text-3);
-  margin-bottom: 6px;
-  display: block;
+.prompt-item:hover { background: var(--border); }
+.prompt-item.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+.prompt-editor { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Backups Modal/Widget ─────────────────── */
+.backups-widget {
+  position: relative;
 }
+.backups-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-hover);
+  margin-top: 8px;
+  z-index: 50;
+  display: none;
+  padding: 8px;
+}
+.backups-dropdown.show { display: block; }
+.backup-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.backup-item:hover { background: var(--bg); }
+
+/* ── Logs ─────────────────────────────────── */
+.log-pane { background: #1c1c1e; border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+.log-pane-head { padding: 12px 24px; background: #2c2c2e; font-size: 12px; color: #aeaeb2; font-weight: 600; text-transform: uppercase; }
+.log-pane-body { padding: 20px 24px; font-family: var(--mono); font-size: 13px; color: #e5e5ea; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+
+/* ── Toast ────────────────────────────────── */
+.toast-wrap { position: fixed; bottom: 32px; right: 32px; z-index: 1000; display: flex; flex-direction: column; gap: 12px; }
+.toast { background: var(--text); color: white; padding: 14px 20px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; box-shadow: var(--shadow-hover); animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.toast.err { background: var(--danger); }
+.toast.ok { background: var(--success); }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 </style>
 </head>
 <body>
 
-<!-- Sidebar -->
-<aside class="sidebar">
-  <div class="sidebar-logo">
-    <div class="sidebar-logo-mark">Ti</div>
-    <div>
-      <div class="sidebar-logo-text">Tinc</div>
-      <div class="sidebar-logo-sub">Control Panel</div>
-    </div>
+<nav class="topnav">
+  <div class="topnav-logo">
+    <div style="width:24px;height:24px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;color:white;font-size:12px;">Ti</div>
+    Tinc Control Panel
   </div>
-
-  <nav class="nav">
-    <div class="nav-label">Config</div>
-    <button class="nav-item active" data-page="shortcuts">
-      <span class="nav-icon">⌘</span> Shortcuts
-    </button>
-    <button class="nav-item" data-page="prompts">
-      <span class="nav-icon">✦</span> AI Prompts
-    </button>
-    <button class="nav-item" data-page="apikeys">
-      <span class="nav-icon">⚿</span> API Keys
-    </button>
-
-    <div class="nav-label">Files</div>
-    <button class="nav-item" data-page="tincyml">
-      <span class="nav-icon">≡</span> tinc.yml
-    </button>
-    <button class="nav-item" data-page="espansocfg">
-      <span class="nav-icon">⚙</span> espanso config
-    </button>
-
-    <div class="nav-label">System</div>
-    <button class="nav-item" data-page="espanso">
-      <span class="nav-icon">◎</span> Espanso
-    </button>
-    <button class="nav-item" data-page="logs">
-      <span class="nav-icon">▤</span> Logs
-    </button>
-  </nav>
-
+  <div class="topnav-links">
+    <a href="#shortcuts" class="topnav-link">Shortcuts</a>
+    <a href="#ai-shortcuts" class="topnav-link">AI Builder</a>
+    <a href="#prompts" class="topnav-link">System Prompts</a>
+    <a href="#files" class="topnav-link">Files</a>
+    <a href="#apikeys" class="topnav-link">Settings</a>
+  </div>
   <div class="espanso-status">
-    <div class="dot" id="sidebar-dot"></div>
-    <span id="sidebar-status">Checking...</span>
+    <div class="dot" id="header-dot"></div>
+    <span id="header-status">Espanso</span>
   </div>
-</aside>
+</nav>
 
-<!-- Main -->
 <div class="main">
 
-  <!-- ─── SHORTCUTS ──────────────────────────── -->
-  <div id="page-shortcuts" class="page active">
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">Text Shortcuts</div>
-        <div class="topbar-desc">Simple trigger → replace expansions in tinc.yml</div>
+  <!-- SHORTCUTS -->
+  <section id="shortcuts">
+    <div class="section-header">
+      <h2 class="section-title">Text Shortcuts</h2>
+      <p class="section-desc">Manage simple text expansions that don't use AI.</p>
+    </div>
+    
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Simple Replacements</span>
+        <button class="btn btn-primary btn-sm" onclick="toggleAddShortcut()">+ Add</button>
       </div>
-      <div class="topbar-actions">
-        <button class="btn btn-primary" id="btn-add-shortcut">+ Add Shortcut</button>
+      
+      <div id="add-shortcut-form" style="display:none; border-bottom:1px solid var(--border); padding: 24px; background:var(--bg);">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom: 20px;">
+          <div class="field" style="margin:0"><label>Trigger</label><input type="text" id="new-trigger" placeholder="e.g. TSVH0"></div>
+          <div class="field" style="margin:0"><label>Replacement</label><input type="text" id="new-replace" placeholder="e.g. The Sanskar Valley High Sec School"></div>
+        </div>
+        <button class="btn btn-primary" id="btn-save-shortcut">Save Shortcut</button>
+        <button class="btn btn-ghost" onclick="toggleAddShortcut()">Cancel</button>
+      </div>
+      
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Trigger</th><th>Expands to</th><th style="width:80px;"></th></tr></thead>
+          <tbody id="shortcuts-tbody"><tr><td colspan="3" style="text-align:center; color:var(--text-3);">Loading...</td></tr></tbody>
+        </table>
       </div>
     </div>
-    <div class="content">
+  </section>
 
-      <!-- Add form (hidden by default) -->
-      <div class="card" id="add-shortcut-form" style="display:none; margin-bottom:16px;">
-        <div class="card-header">
-          <span class="card-title">New Shortcut</span>
-          <button class="btn btn-ghost btn-sm" id="btn-cancel-add">Cancel</button>
-        </div>
-        <div class="card-body">
-          <div class="grid-2">
+  <!-- AI BUILDER -->
+  <section id="ai-shortcuts">
+    <div class="section-header">
+      <h2 class="section-title">AI Shortcut Builder</h2>
+      <p class="section-desc">Create new AI commands dynamically without manually editing code.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <div>
             <div class="field">
-              <label>Trigger (what you type)</label>
-              <input type="text" id="new-trigger" placeholder="TSVH0" autocomplete="off">
+              <label>Trigger Suffix</label>
+              <input type="text" id="ai-suffix" placeholder="e.g. sql" pattern="[a-z0-9]+">
+              <div style="font-size:12px; color:var(--text-3); margin-top:6px;">You will type <code style="font-family:var(--mono)">[your prompt]sql</code> to trigger this.</div>
             </div>
-            <div class="field">
-              <label>Replace (what gets inserted)</label>
-              <input type="text" id="new-replace" placeholder="The Sanskar Valley High Sec School Kannod MP">
-            </div>
+            
+            <label class="checkbox-label">
+              <input type="checkbox" id="ai-web">
+              Enable Web Search Support
+            </label>
+            <div style="font-size:12px; color:var(--text-3); margin-left:28px; margin-bottom:16px;">Allows prefixing with 'w' (e.g. <code>wsql</code>) to browse the web first.</div>
+            
+            <label class="checkbox-label">
+              <input type="checkbox" id="ai-code">
+              Is Code Output?
+            </label>
+            <div style="font-size:12px; color:var(--text-3); margin-left:28px; margin-bottom:16px;">Automatically strips markdown fences (<code>```</code>) from the output.</div>
           </div>
-          <button class="btn btn-primary" id="btn-save-shortcut">Save Shortcut</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">All Shortcuts</span>
-          <span id="shortcuts-count" class="badge" style="font-size:11px;">—</span>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Trigger</th>
-                <th>Expands to</th>
-                <th style="width:60px;"></th>
-              </tr>
-            </thead>
-            <tbody id="shortcuts-tbody">
-              <tr><td colspan="3"><div class="empty"><div class="empty-text">Loading...</div></div></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="note info" style="margin-top:14px;">
-        AI commands (e.g. <code style="font-family:var(--mono)">[prompt]ai</code>, <code style="font-family:var(--mono)">[text]fix</code>) are regex-based and edited in <strong>tinc.yml</strong>.
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── AI PROMPTS ─────────────────────────── -->
-  <div id="page-prompts" class="page">
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">AI System Prompts</div>
-        <div class="topbar-desc">Edit the instructions given to the AI for each mode</div>
-      </div>
-    </div>
-    <div class="content">
-      <div class="prompts-layout">
-        <!-- Mode list -->
-        <div class="card" style="padding:8px;">
-          <div id="prompt-list" class="prompt-list">
-            <div style="padding:12px;color:var(--text-3);font-size:12px;">Loading...</div>
-          </div>
-        </div>
-
-        <!-- Editor -->
-        <div class="prompt-editor-pane" id="prompt-editor-pane">
-          <div class="empty" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);">
-            <div class="empty-icon">✦</div>
-            <div class="empty-text">Select a mode from the left</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── API KEYS ────────────────────────────── -->
-  <div id="page-apikeys" class="page">
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">API Keys</div>
-        <div class="topbar-desc">Gemini is primary, Groq keys are fallbacks in order</div>
-      </div>
-      <div class="topbar-actions">
-        <button class="btn btn-primary" id="btn-save-config">Save</button>
-      </div>
-    </div>
-    <div class="content">
-      <div class="grid-2">
-        <div class="stack">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Google Gemini</span>
-              <span class="badge badge-blue">Primary</span>
-            </div>
-            <div class="card-body stack">
-              <div class="field">
-                <label>API Key</label>
-                <div class="input-row">
-                  <input type="password" id="gemini-key" placeholder="AIza...">
-                  <button class="btn btn-default btn-sm" onclick="toggle('gemini-key')">Show</button>
-                </div>
-              </div>
-              <div class="field">
-                <label>Model</label>
-                <input type="text" id="gemini-model" placeholder="gemini-2.5-flash-lite">
-              </div>
+          
+          <div>
+            <div class="field" style="height:100%;">
+              <label>System Prompt</label>
+              <textarea id="ai-prompt" placeholder="e.g. Write ONLY valid SQL. No explanations." style="height: calc(100% - 24px);"></textarea>
             </div>
           </div>
         </div>
-
-        <div class="stack">
-          <div class="card">
-            <div class="card-header">
-              <span class="card-title">Groq Fallbacks</span>
-              <button class="btn btn-default btn-sm" id="btn-add-groq">+ Add Key</button>
-            </div>
-            <div class="card-body">
-              <div class="field" style="margin-bottom:14px;">
-                <label>Model</label>
-                <input type="text" id="groq-model" placeholder="llama-3.3-70b-versatile">
-              </div>
-              <div id="groq-keys-list">
-                <div style="color:var(--text-3);font-size:13px;">Loading...</div>
-              </div>
-            </div>
-          </div>
+        <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:24px; display:flex; justify-content:flex-end;">
+          <button class="btn btn-primary" id="btn-add-ai">Create AI Shortcut</button>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ─── TINC.YML ────────────────────────────── -->
-  <div id="page-tincyml" class="page">
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">tinc.yml</div>
-        <div class="topbar-desc">All Espanso match triggers — edit with care</div>
-      </div>
-      <div class="topbar-actions">
-        <button class="btn btn-default" id="btn-reload-yml">Reload</button>
-        <button class="btn btn-primary" id="btn-save-yml">Save & Restart Espanso</button>
+  <!-- PROMPTS -->
+  <section id="prompts">
+    <div class="section-header">
+      <h2 class="section-title">System Prompts</h2>
+      <p class="section-desc">Edit the instructions passed to the AI for each mode.</p>
+    </div>
+    
+    <div class="card prompts-grid">
+      <div class="prompts-sidebar" id="prompt-list">Loading...</div>
+      <div class="prompt-editor" id="prompt-editor-pane">
+        <div style="text-align:center; color:var(--text-3); padding-top:100px;">Select a mode from the left</div>
       </div>
     </div>
-    <div class="content">
-      <div class="note" style="margin-bottom:14px;">
-        Changes are saved directly to <code style="font-family:var(--mono)">~/.config/espanso/match/tinc.yml</code> and Espanso is restarted automatically.
+  </section>
+
+  <!-- FILES -->
+  <section id="files">
+    <div class="section-header">
+      <h2 class="section-title">Raw Configurations</h2>
+      <p class="section-desc">Directly edit the underlying YAML files. Backups are created automatically.</p>
+    </div>
+
+    <!-- Tinc.yml -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="editor-bar">
+        <div>
+          <span style="font-weight:600;font-size:15px;">tinc.yml</span>
+          <span style="color:var(--text-2);font-size:13px;margin-left:8px;">Espanso match rules</span>
+        </div>
+        <div class="editor-bar-actions">
+          <div class="backups-widget">
+            <button class="btn btn-default btn-sm" onclick="toggleBackups('tinc.yml')">⎌ Backups</button>
+            <div class="backups-dropdown" id="backups-tinc.yml"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-save-yml">Save & Restart</button>
+        </div>
       </div>
       <div class="code-editor">
-        <div class="code-editor-bar">
-          <span>espanso/match/tinc.yml</span>
-          <span id="yml-char-count" style="font-size:11px;"></span>
-        </div>
         <textarea id="tinc-yml-editor" spellcheck="false"></textarea>
       </div>
     </div>
-  </div>
 
-  <!-- ─── ESPANSO CONFIG ──────────────────────── -->
-  <div id="page-espansocfg" class="page">
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">Espanso Config</div>
-        <div class="topbar-desc">default.yml — backend, keyboard, and clipboard settings</div>
-      </div>
-      <div class="topbar-actions">
-        <button class="btn btn-default" id="btn-reload-cfg">Reload</button>
-        <button class="btn btn-primary" id="btn-save-cfg">Save & Restart Espanso</button>
-      </div>
-    </div>
-    <div class="content">
-      <div class="note" style="margin-bottom:14px;">
-        Changes are saved to <code style="font-family:var(--mono)">~/.config/espanso/config/default.yml</code> and Espanso is restarted automatically.
+    <!-- Espanso Config -->
+    <div class="card">
+      <div class="editor-bar">
+        <div>
+          <span style="font-weight:600;font-size:15px;">default.yml</span>
+          <span style="color:var(--text-2);font-size:13px;margin-left:8px;">Espanso backend config</span>
+        </div>
+        <div class="editor-bar-actions">
+          <div class="backups-widget">
+            <button class="btn btn-default btn-sm" onclick="toggleBackups('default.yml')">⎌ Backups</button>
+            <div class="backups-dropdown" id="backups-default.yml"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btn-save-cfg">Save & Restart</button>
+        </div>
       </div>
       <div class="code-editor">
-        <div class="code-editor-bar">
-          <span>espanso/config/default.yml</span>
-          <span id="cfg-char-count" style="font-size:11px;"></span>
-        </div>
         <textarea id="espanso-cfg-editor" spellcheck="false"></textarea>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ─── ESPANSO ─────────────────────────────── -->
-  <div id="page-espanso" class="page">
-    <div class="topbar">
-      <div>
-        <div class="topbar-title">Espanso Service</div>
-        <div class="topbar-desc">Monitor and control the text expansion daemon</div>
-      </div>
-      <div class="topbar-actions">
-        <button class="btn btn-default" id="btn-check-espanso">Refresh</button>
-        <button class="btn btn-primary" id="btn-restart-espanso">Restart</button>
-      </div>
+  <!-- SETTINGS -->
+  <section id="apikeys">
+    <div class="section-header">
+      <h2 class="section-title">Settings</h2>
+      <p class="section-desc">Manage your API keys and fallback models.</p>
     </div>
-    <div class="content">
-      <div class="card" style="max-width:500px;">
-        <div class="card-body">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
-            <div class="dot" id="espanso-dot" style="width:10px;height:10px;"></div>
-            <div>
-              <div style="font-weight:600;font-size:15px;" id="espanso-status-text">Checking…</div>
-              <div style="font-size:12px;color:var(--text-2);margin-top:2px;">Espanso process status</div>
-            </div>
+
+    <div class="card" style="margin-bottom: 24px;">
+      <div class="card-header">
+        <span class="card-title">Google Gemini (Primary)</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>API Key</label>
+          <div class="input-row">
+            <input type="password" id="gemini-key">
+            <button class="btn btn-default" onclick="toggleP('gemini-key')">Show</button>
           </div>
-          <div id="espanso-output" style="display:none;" class="mono" style="font-size:12px;color:var(--text-2);background:var(--bg);padding:10px 12px;border-radius:6px;"></div>
         </div>
-      </div>
-
-      <div style="margin-top:16px;max-width:500px;">
-        <div class="note info">
-          Tinc uses Espanso to detect <code style="font-family:var(--mono)">[prompt]suffix</code> triggers system-wide and call the AI router script. Restarting Espanso reloads all match files.
+        <div class="field" style="margin-bottom:0;">
+          <label>Model</label>
+          <input type="text" id="gemini-model">
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- ─── LOGS ────────────────────────────────── -->
-  <div id="page-logs" class="page">
-    <div class="topbar">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Groq (Fallbacks)</span>
+        <button class="btn btn-default btn-sm" id="btn-add-groq">+ Add Key</button>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Model</label>
+          <input type="text" id="groq-model">
+        </div>
+        <label>Fallback Keys</label>
+        <div id="groq-keys-list" style="display:flex;flex-direction:column;gap:12px;"></div>
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; margin-top:24px;">
+      <button class="btn btn-primary" id="btn-save-config">Save Settings</button>
+    </div>
+  </section>
+  
+  <section id="logs">
+    <div class="section-header" style="display:flex; justify-content:space-between; align-items:flex-end;">
       <div>
-        <div class="topbar-title">Worker Logs</div>
-        <div class="topbar-desc">/tmp/tinc_worker.out and .err from the last AI invocation</div>
+        <h2 class="section-title">Logs</h2>
+        <p class="section-desc">Output from the last AI execution.</p>
       </div>
-      <div class="topbar-actions">
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-2);">
-          <input type="checkbox" id="auto-refresh" style="width:auto;"> Auto-refresh
-        </label>
-        <button class="btn btn-default" id="btn-refresh-logs">Refresh</button>
-      </div>
+      <button class="btn btn-default btn-sm" id="btn-refresh-logs">Refresh</button>
     </div>
-    <div class="content stack">
-      <div class="log-pane">
-        <div class="log-pane-head"><span>stdout</span></div>
-        <div class="log-pane-body" id="log-out">Loading…</div>
-      </div>
-      <div class="log-pane">
-        <div class="log-pane-head"><span>stderr</span></div>
-        <div class="log-pane-body err" id="log-err">Loading…</div>
-      </div>
+    
+    <div class="log-pane">
+      <div class="log-pane-head">stdout</div>
+      <div class="log-pane-body" id="log-out">Loading...</div>
     </div>
-  </div>
+    <div class="log-pane">
+      <div class="log-pane-head">stderr</div>
+      <div class="log-pane-body" id="log-err" style="color:#ff6b6b;">Loading...</div>
+    </div>
+  </section>
 
 </div><!-- /.main -->
 
 <div class="toast-wrap" id="toasts"></div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────
 let prompts = {};
-let activePromptMode = null;
-let logTimer = null;
+let activePrompt = null;
 
-// ── Utils ──────────────────────────────────────────────────────
+// Utils
 const $ = id => document.getElementById(id);
-const $$ = sel => document.querySelectorAll(sel);
-
-async function api(path, method = 'GET', body = null) {
+const api = async (path, method = 'GET', body = null) => {
   const opts = { method, headers: {} };
   if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-  try {
-    const r = await fetch(path, opts);
-    return await r.json();
-  } catch (e) { return { error: e.message }; }
-}
+  const r = await fetch(path, opts);
+  return await r.json();
+};
 
-function toast(msg, type = '') {
+const toast = (msg, type = '') => {
   const el = document.createElement('div');
-  el.className = 'toast' + (type ? ' ' + type : '');
+  el.className = 'toast ' + type;
   el.textContent = msg;
   $('toasts').appendChild(el);
-  setTimeout(() => el.remove(), 3200);
-}
+  setTimeout(() => el.remove(), 3000);
+};
 
-function toggle(id) {
+const toggleP = (id) => {
   const el = $(id);
-  el.type = el.type === 'password' ? 'text' : 'password';
+  if (el) el.type = el.type === 'password' ? 'text' : 'password';
+};
+
+// Init
+async function init() {
+  loadShortcuts();
+  loadPrompts();
+  loadTincYml();
+  loadEspansoCfg();
+  loadConfig();
+  fetchLogs();
+  checkEspanso();
 }
 
-function setLoading(btn, yes) {
-  btn.disabled = yes;
-  if (yes) { btn.dataset.t = btn.textContent; btn.textContent = 'Saving…'; }
-  else { btn.textContent = btn.dataset.t; }
+// Shortcuts
+function toggleAddShortcut() {
+  const form = $('add-shortcut-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
 }
 
-// ── Navigation ─────────────────────────────────────────────────
-$$('.nav-item').forEach(btn => {
-  btn.addEventListener('click', () => {
-    $$('.nav-item').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const page = btn.dataset.page;
-    $$('.page').forEach(p => p.classList.remove('active'));
-    $('page-' + page).classList.add('active');
-    onPageEnter(page);
-  });
-});
-
-function onPageEnter(page) {
-  if (page === 'shortcuts') loadShortcuts();
-  if (page === 'prompts') loadPrompts();
-  if (page === 'apikeys') loadConfig();
-  if (page === 'tincyml') loadTincYml();
-  if (page === 'espansocfg') loadEspansoCfg();
-  if (page === 'espanso') checkEspanso();
-  if (page === 'logs') fetchLogs();
-
-  // Stop auto-refresh when leaving logs
-  if (page !== 'logs') {
-    clearInterval(logTimer);
-    $('auto-refresh').checked = false;
-  }
-}
-
-// ── Espanso status (sidebar) ───────────────────────────────────
-async function updateSidebarStatus() {
-  const r = await api('/api/espanso/status');
-  const dot = $('sidebar-dot');
-  const txt = $('sidebar-status');
-  if (r.running) {
-    dot.className = 'dot on';
-    txt.textContent = 'Running';
-  } else {
-    dot.className = 'dot off';
-    txt.textContent = 'Stopped';
-  }
-}
-updateSidebarStatus();
-
-// ── Shortcuts ──────────────────────────────────────────────────
 async function loadShortcuts() {
   const r = await api('/api/shortcuts');
   const list = r.shortcuts || [];
-  $('shortcuts-count').textContent = list.length + ' shortcuts';
   const tbody = $('shortcuts-tbody');
-  if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="3"><div class="empty"><div class="empty-text">No simple shortcuts yet. Add one above.</div></div></td></tr>`;
-    return;
-  }
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-3);">No shortcuts added.</td></tr>'; return; }
   tbody.innerHTML = list.map(s => `
     <tr>
-      <td><span class="mono">${esc(s.trigger)}</span></td>
-      <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.replace)}</td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick="deleteShortcut('${esc(s.trigger)}')" title="Delete" style="color:var(--text-3);">✕</button>
-      </td>
+      <td><code style="font-family:var(--mono);background:var(--bg);padding:2px 6px;border-radius:4px;">${s.trigger}</code></td>
+      <td>${s.replace}</td>
+      <td style="text-align:right;"><button class="btn btn-ghost btn-sm" onclick="deleteShortcut('${s.trigger}')" style="color:var(--danger)">Delete</button></td>
     </tr>
   `).join('');
 }
 
-$('btn-add-shortcut').onclick = () => {
-  $('add-shortcut-form').style.display = '';
-  $('new-trigger').focus();
-};
-$('btn-cancel-add').onclick = () => {
-  $('add-shortcut-form').style.display = 'none';
-  $('new-trigger').value = '';
-  $('new-replace').value = '';
+$('btn-save-shortcut').onclick = async () => {
+  const t = $('new-trigger').value.trim();
+  const r = $('new-replace').value.trim();
+  if (!t || !r) return toast('Fill both fields', 'err');
+  const res = await api('/api/shortcuts/add', 'POST', {trigger: t, replace: r});
+  if (res.ok) { toast('Shortcut added', 'ok'); toggleAddShortcut(); $('new-trigger').value = ''; $('new-replace').value = ''; loadShortcuts(); loadTincYml(); }
+  else toast('Failed', 'err');
 };
 
-$('btn-save-shortcut').onclick = async () => {
-  const trigger = $('new-trigger').value.trim();
-  const replace = $('new-replace').value.trim();
-  if (!trigger || !replace) { toast('Fill both fields', 'err'); return; }
-  const r = await api('/api/shortcuts/add', 'POST', { trigger, replace });
+async function deleteShortcut(t) {
+  if (!confirm(`Delete ${t}?`)) return;
+  const r = await api('/api/shortcuts/delete', 'POST', {trigger: t});
+  if (r.ok) { toast('Deleted', 'ok'); loadShortcuts(); loadTincYml(); }
+}
+
+// AI Builder
+$('btn-add-ai').onclick = async () => {
+  const suffix = $('ai-suffix').value.trim();
+  const prompt = $('ai-prompt').value.trim();
+  const web = $('ai-web').checked;
+  const isCode = $('ai-code').checked;
+  
+  if (!suffix || !prompt) return toast('Suffix and Prompt required', 'err');
+  
+  $('btn-add-ai').textContent = 'Creating...';
+  const r = await api('/api/ai-shortcuts/add', 'POST', {suffix, prompt, web, is_code: isCode});
+  $('btn-add-ai').textContent = 'Create AI Shortcut';
+  
   if (r.ok) {
-    toast('Shortcut added', 'ok');
-    $('add-shortcut-form').style.display = 'none';
-    $('new-trigger').value = '';
-    $('new-replace').value = '';
-    loadShortcuts();
+    toast('AI Shortcut created! Restarting Espanso...', 'ok');
+    $('ai-suffix').value = '';
+    $('ai-prompt').value = '';
+    
+    // Reload UI states
+    loadPrompts();
+    loadTincYml();
+    await api('/api/espanso/restart', 'POST');
+    checkEspanso();
   } else {
-    toast('Failed to add shortcut', 'err');
+    toast('Failed to create AI shortcut', 'err');
   }
 };
 
-async function deleteShortcut(trigger) {
-  if (!confirm(`Delete shortcut "${trigger}"?`)) return;
-  const r = await api('/api/shortcuts/delete', 'POST', { trigger });
-  if (r.ok) { toast('Deleted', 'ok'); loadShortcuts(); }
-  else toast('Delete failed', 'err');
-}
-
-// ── Prompts ────────────────────────────────────────────────────
+// Prompts
 async function loadPrompts() {
   const r = await api('/api/prompts');
   prompts = r.prompts || {};
   const list = $('prompt-list');
-  const modes = Object.keys(prompts).sort();
-  if (modes.length === 0) {
-    list.innerHTML = '<div style="padding:12px;color:var(--text-3);font-size:12px;">None found</div>';
-    return;
-  }
-  list.innerHTML = modes.map(m =>
-    `<div class="prompt-list-item${m === activePromptMode ? ' active' : ''}" data-mode="${m}">${m}</div>`
+  list.innerHTML = Object.keys(prompts).sort().map(m => 
+    `<div class="prompt-item" onclick="selectPrompt('${m}')" id="prompt-btn-${m}">${m}</div>`
   ).join('');
-  list.querySelectorAll('.prompt-list-item').forEach(el => {
-    el.onclick = () => selectPrompt(el.dataset.mode);
-  });
-  if (activePromptMode && prompts[activePromptMode]) renderPromptEditor(activePromptMode);
+  if (activePrompt) selectPrompt(activePrompt);
 }
 
 function selectPrompt(mode) {
-  activePromptMode = mode;
-  $$('.prompt-list-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.mode === mode);
-  });
-  renderPromptEditor(mode);
-}
-
-function renderPromptEditor(mode) {
-  const pane = $('prompt-editor-pane');
-  pane.innerHTML = `
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title" style="font-family:var(--mono)">${mode}</span>
-        <button class="btn btn-primary btn-sm" id="btn-save-prompt">Save</button>
-      </div>
-      <div class="card-body">
-        <label style="margin-bottom:6px;">System Prompt</label>
-        <textarea id="prompt-textarea" style="min-height:200px;font-family:var(--font);font-size:13px;">${esc(prompts[mode])}</textarea>
-      </div>
+  activePrompt = mode;
+  document.querySelectorAll('.prompt-item').forEach(el => el.classList.remove('active'));
+  $(`prompt-btn-${mode}`).classList.add('active');
+  
+  $('prompt-editor-pane').innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-weight:600; font-family:var(--mono); font-size:16px;">${mode}</div>
+      <button class="btn btn-primary btn-sm" id="btn-save-prompt">Save Changes</button>
     </div>
+    <textarea id="prompt-ta" style="flex:1; min-height:300px;">${prompts[mode]}</textarea>
   `;
+  
   $('btn-save-prompt').onclick = async () => {
-    const btn = $('btn-save-prompt');
-    setLoading(btn, true);
-    const r = await api('/api/prompts', 'POST', { mode, prompt: $('prompt-textarea').value });
-    setLoading(btn, false);
-    if (r.ok) { toast('Prompt saved', 'ok'); prompts[mode] = $('prompt-textarea').value; }
-    else toast('Save failed — could not patch ai_router.py', 'err');
+    const txt = $('prompt-ta').value;
+    const r = await api('/api/prompts', 'POST', {mode, prompt: txt});
+    if (r.ok) { toast('Saved', 'ok'); prompts[mode] = txt; }
+    else toast('Failed', 'err');
   };
 }
 
-// ── API Keys ───────────────────────────────────────────────────
+// Configs & Backups
+async function loadTincYml() {
+  const r = await api('/api/tinc-yml');
+  $('tinc-yml-editor').value = r.content || '';
+}
+async function loadEspansoCfg() {
+  const r = await api('/api/espanso-cfg');
+  $('espanso-cfg-editor').value = r.content || '';
+}
+
+$('btn-save-yml').onclick = async () => {
+  const r = await api('/api/tinc-yml', 'POST', {content: $('tinc-yml-editor').value});
+  if (r.ok) { await api('/api/espanso/restart', 'POST'); toast('Saved & Restarted', 'ok'); checkEspanso(); }
+};
+$('btn-save-cfg').onclick = async () => {
+  const r = await api('/api/espanso-cfg', 'POST', {content: $('espanso-cfg-editor').value});
+  if (r.ok) { await api('/api/espanso/restart', 'POST'); toast('Saved & Restarted', 'ok'); checkEspanso(); }
+};
+
+// Backups Logic
+async function toggleBackups(filename) {
+  const dropdown = $(`backups-${filename}`);
+  if (dropdown.classList.contains('show')) {
+    dropdown.classList.remove('show');
+    return;
+  }
+  
+  document.querySelectorAll('.backups-dropdown').forEach(d => d.classList.remove('show'));
+  dropdown.innerHTML = '<div style="padding:12px;color:var(--text-3);font-size:13px;">Loading...</div>';
+  dropdown.classList.add('show');
+  
+  const r = await api(`/api/backups?file=${filename}`);
+  if (r.backups && r.backups.length > 0) {
+    dropdown.innerHTML = r.backups.map(b => `
+      <div class="backup-item">
+        <span style="font-family:var(--mono);">${b.split('_').slice(1).join('_')}</span>
+        <button class="btn btn-primary btn-sm" onclick="restoreBackup('${filename}', '${b}')" style="padding:4px 8px;font-size:11px;">Restore</button>
+      </div>
+    `).join('');
+  } else {
+    dropdown.innerHTML = '<div style="padding:12px;color:var(--text-3);font-size:13px;">No backups found.</div>';
+  }
+}
+
+async function restoreBackup(filename, backupId) {
+  if (!confirm(`Restore ${filename} from this snapshot? Your current changes will be overwritten.`)) return;
+  const r = await api('/api/backups/restore', 'POST', {filename, backup_id: backupId});
+  if (r.ok) {
+    toast('Backup restored', 'ok');
+    if (filename === 'tinc.yml') loadTincYml();
+    if (filename === 'default.yml') loadEspansoCfg();
+    document.querySelectorAll('.backups-dropdown').forEach(d => d.classList.remove('show'));
+  } else {
+    toast('Failed to restore backup', 'err');
+  }
+}
+
+// Click outside to close dropdowns
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.backups-widget')) {
+    document.querySelectorAll('.backups-dropdown').forEach(d => d.classList.remove('show'));
+  }
+});
+
+// Settings
 async function loadConfig() {
   const r = await api('/api/config');
   $('gemini-key').value = r.gemini_api_key || '';
-  $('gemini-model').value = r.gemini_model || 'gemini-2.5-flash-lite';
-  $('groq-model').value = r.groq_model || 'llama-3.3-70b-versatile';
-  renderGroqKeys(r.groq_api_keys || []);
-}
-
-function renderGroqKeys(keys) {
-  const container = $('groq-keys-list');
-  if (keys.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:4px 0;">No Groq keys configured.</div>';
-    return;
-  }
-  container.innerHTML = keys.map((k, i) => `
-    <div class="key-row">
-      <input type="password" class="groq-key" value="${esc(k)}" placeholder="gsk_...">
-      <button class="btn btn-ghost btn-sm" onclick="toggle(this.previousElementSibling)" title="Show">👁</button>
-      <button class="btn btn-ghost btn-sm" onclick="this.closest('.key-row').remove()" title="Remove" style="color:var(--danger);">✕</button>
+  $('gemini-model').value = r.gemini_model || '';
+  $('groq-model').value = r.groq_model || '';
+  const keys = r.groq_api_keys || [];
+  
+  $('groq-keys-list').innerHTML = keys.length ? keys.map(k => `
+    <div class="input-row">
+      <input type="password" class="groq-key" value="${k}">
+      <button class="btn btn-default" onclick="toggleP(this.previousElementSibling)">Show</button>
+      <button class="btn btn-ghost" onclick="this.parentElement.remove()" style="color:var(--danger)">✕</button>
     </div>
-  `).join('');
+  `).join('') : '<div style="color:var(--text-3);font-size:13px;">No fallback keys configured.</div>';
 }
-
-// toggle by element reference
-window.toggle = function(arg) {
-  if (typeof arg === 'string') { const el = $(arg); if (el) el.type = el.type === 'password' ? 'text' : 'password'; }
-  else if (arg && arg.type !== undefined) { arg.type = arg.type === 'password' ? 'text' : 'password'; }
-};
 
 $('btn-add-groq').onclick = () => {
-  const container = $('groq-keys-list');
-  // Clear placeholder text if present
-  if (container.querySelector('div:not(.key-row)')) container.innerHTML = '';
-  const row = document.createElement('div');
-  row.className = 'key-row';
-  row.innerHTML = `
+  const list = $('groq-keys-list');
+  if (list.querySelector('div:not(.input-row)')) list.innerHTML = '';
+  const div = document.createElement('div');
+  div.className = 'input-row';
+  div.innerHTML = `
     <input type="password" class="groq-key" placeholder="gsk_...">
-    <button class="btn btn-ghost btn-sm" onclick="toggle(this.previousElementSibling)" title="Show">👁</button>
-    <button class="btn btn-ghost btn-sm" onclick="this.closest('.key-row').remove()" style="color:var(--danger);">✕</button>
+    <button class="btn btn-default" onclick="toggleP(this.previousElementSibling)">Show</button>
+    <button class="btn btn-ghost" onclick="this.parentElement.remove()" style="color:var(--danger)">✕</button>
   `;
-  container.appendChild(row);
-  row.querySelector('input').focus();
+  list.appendChild(div);
 };
 
 $('btn-save-config').onclick = async () => {
-  const btn = $('btn-save-config');
-  setLoading(btn, true);
-  const groqKeys = [...$$('.groq-key')].map(el => el.value).filter(v => v.trim());
+  const groqKeys = [...document.querySelectorAll('.groq-key')].map(el => el.value).filter(v => v.trim());
   const r = await api('/api/config', 'POST', {
     gemini_api_key: $('gemini-key').value,
-    gemini_model:   $('gemini-model').value,
-    groq_model:     $('groq-model').value,
-    groq_api_keys:  groqKeys,
+    gemini_model: $('gemini-model').value,
+    groq_model: $('groq-model').value,
+    groq_api_keys: groqKeys
   });
-  setLoading(btn, false);
-  if (r.ok) { toast('Saved', 'ok'); loadConfig(); }
-  else toast('Save failed', 'err');
+  if (r.ok) { toast('Settings saved', 'ok'); loadConfig(); }
 };
 
-// ── tinc.yml editor ────────────────────────────────────────────
-async function loadTincYml() {
-  const r = await api('/api/tinc-yml');
-  const ta = $('tinc-yml-editor');
-  ta.value = r.content || '';
-  $('yml-char-count').textContent = ta.value.length + ' chars';
-  ta.oninput = () => $('yml-char-count').textContent = ta.value.length + ' chars';
-}
-
-$('btn-reload-yml').onclick = loadTincYml;
-
-$('btn-save-yml').onclick = async () => {
-  const btn = $('btn-save-yml');
-  setLoading(btn, true);
-  const r = await api('/api/tinc-yml', 'POST', { content: $('tinc-yml-editor').value });
-  if (r.ok) {
-    const re = await api('/api/espanso/restart', 'POST');
-    toast(re.ok ? 'Saved & Espanso restarted' : 'Saved (Espanso restart failed)', re.ok ? 'ok' : '');
-    updateSidebarStatus();
-  } else toast('Save failed', 'err');
-  setLoading(btn, false);
-};
-
-// ── Espanso config editor ──────────────────────────────────────
-async function loadEspansoCfg() {
-  const r = await api('/api/espanso-cfg');
-  const ta = $('espanso-cfg-editor');
-  ta.value = r.content || '';
-  $('cfg-char-count').textContent = ta.value.length + ' chars';
-  ta.oninput = () => $('cfg-char-count').textContent = ta.value.length + ' chars';
-}
-
-$('btn-reload-cfg').onclick = loadEspansoCfg;
-
-$('btn-save-cfg').onclick = async () => {
-  const btn = $('btn-save-cfg');
-  setLoading(btn, true);
-  const r = await api('/api/espanso-cfg', 'POST', { content: $('espanso-cfg-editor').value });
-  if (r.ok) {
-    const re = await api('/api/espanso/restart', 'POST');
-    toast(re.ok ? 'Saved & Espanso restarted' : 'Saved (restart failed)', re.ok ? 'ok' : '');
-    updateSidebarStatus();
-  } else toast('Save failed', 'err');
-  setLoading(btn, false);
-};
-
-// ── Espanso page ───────────────────────────────────────────────
+// Logs & Status
 async function checkEspanso() {
   const r = await api('/api/espanso/status');
-  const dot = $('espanso-dot');
-  dot.className = 'dot ' + (r.running ? 'on' : 'off');
-  $('espanso-status-text').textContent = r.running ? 'Running' : 'Stopped';
-  const outEl = $('espanso-output');
-  if (r.out) { outEl.style.display = ''; outEl.textContent = r.out; }
+  $('header-dot').className = 'dot ' + (r.running ? 'on' : 'off');
 }
 
-$('btn-check-espanso').onclick = checkEspanso;
-
-$('btn-restart-espanso').onclick = async () => {
-  const btn = $('btn-restart-espanso');
-  setLoading(btn, true);
-  const r = await api('/api/espanso/restart', 'POST');
-  toast(r.ok ? 'Restarted' : 'Restart failed: ' + r.out, r.ok ? 'ok' : 'err');
-  setLoading(btn, false);
-  setTimeout(() => { checkEspanso(); updateSidebarStatus(); }, 1000);
-};
-
-// ── Logs ───────────────────────────────────────────────────────
 async function fetchLogs() {
   const r = await api('/api/logs');
-  $('log-out').textContent = r.stdout || '(empty)';
-  $('log-err').textContent = r.stderr || '(empty)';
+  $('log-out').textContent = r.stdout || '';
+  $('log-err').textContent = r.stderr || '';
 }
-
 $('btn-refresh-logs').onclick = fetchLogs;
 
-$('auto-refresh').onchange = function() {
-  clearInterval(logTimer);
-  if (this.checked) logTimer = setInterval(fetchLogs, 3000);
-};
-
-// ── Escape HTML ────────────────────────────────────────────────
-function esc(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// ── Boot ───────────────────────────────────────────────────────
-loadShortcuts();
+init();
 </script>
 </body>
 </html>

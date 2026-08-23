@@ -14,6 +14,8 @@ import subprocess
 import urllib.parse
 import webbrowser
 import threading
+import glob
+from datetime import datetime
 
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
 _CANDIDATES = [
@@ -28,12 +30,71 @@ TINC_YML          = os.path.expanduser("~/.config/espanso/match/tinc.yml")
 ESPANSO_CFG       = os.path.expanduser("~/.config/espanso/config/default.yml")
 AI_ROUTER         = os.path.expanduser("~/.config/espanso/scripts/ai_router.py")
 ESPANSO_BIN       = os.path.expanduser("~/.local/bin/espanso")
+BACKUP_DIR        = os.path.expanduser("~/.config/tinc/backups")
 
 sys.path.insert(0, SCRIPT_DIR)
 
 HOST = "127.0.0.1"
 PORT = 9876
 
+
+# ─── Backups ──────────────────────────────────────────────────────────────────
+
+def backup_file(filepath: str) -> None:
+    if not os.path.exists(filepath):
+        return
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    filename = os.path.basename(filepath)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(BACKUP_DIR, f"{filename}_{timestamp}")
+    
+    try:
+        with open(filepath, "r", encoding="utf-8") as src, open(backup_path, "w", encoding="utf-8") as dst:
+            dst.write(src.read())
+    except Exception:
+        pass
+        
+    # Prune old backups (keep last 10)
+    try:
+        backups = sorted(glob.glob(os.path.join(BACKUP_DIR, f"{filename}_*")))
+        while len(backups) > 10:
+            os.remove(backups.pop(0))
+    except Exception:
+        pass
+
+def get_backups(filename: str) -> list:
+    try:
+        backups = sorted(glob.glob(os.path.join(BACKUP_DIR, f"{filename}_*")), reverse=True)
+        return [os.path.basename(b) for b in backups]
+    except Exception:
+        return []
+
+def restore_backup(filename: str, backup_id: str) -> bool:
+    # Ensure backup_id doesn't contain path traversal
+    if "/" in backup_id or "\\" in backup_id:
+        return False
+        
+    backup_path = os.path.join(BACKUP_DIR, backup_id)
+    if not os.path.exists(backup_path):
+        return False
+        
+    target_path = None
+    if filename == "config.json": target_path = CONFIG_PATH
+    elif filename == "tinc.yml": target_path = TINC_YML
+    elif filename == "default.yml": target_path = ESPANSO_CFG
+    elif filename == "ai_router.py": target_path = AI_ROUTER
+    else: return False
+    
+    if target_path:
+        # Backup the current state before restoring
+        backup_file(target_path)
+        try:
+            with open(backup_path, "r", encoding="utf-8") as src, open(target_path, "w", encoding="utf-8") as dst:
+                dst.write(src.read())
+            return True
+        except Exception:
+            return False
+    return False
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,6 +118,7 @@ def read_config() -> dict:
         return {}
 
 def write_config(cfg: dict) -> None:
+    backup_file(CONFIG_PATH)
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
@@ -75,15 +137,12 @@ def espanso_run(args: list) -> dict:
         return {"ok": False, "out": str(e)}
 
 def extract_prompts_from_router() -> dict:
-    """Parse SYSTEM_PROMPTS dict from ai_router.py source."""
     try:
         src = read_file(AI_ROUTER)
-        # Find the SYSTEM_PROMPTS dict block
         m = re.search(r"SYSTEM_PROMPTS\s*=\s*\{(.+?)\n\}", src, re.DOTALL)
         if not m:
             return {}
         block = m.group(1)
-        # Extract key: "value" pairs (handles multi-line strings via naive regex)
         prompts = {}
         for km in re.finditer(r'"(\w+)":\s*"((?:[^"\\]|\\.)*)"', block):
             prompts[km.group(1)] = km.group(2).replace("\\n", "\n").replace('\\"', '"')
@@ -92,18 +151,16 @@ def extract_prompts_from_router() -> dict:
         return {}
 
 def write_prompt_to_router(mode: str, new_prompt: str) -> bool:
-    """Patch a single SYSTEM_PROMPTS entry in ai_router.py."""
     try:
+        backup_file(AI_ROUTER)
         src = read_file(AI_ROUTER)
         escaped = new_prompt.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
-        # Replace the value for this key
         pattern = rf'("{re.escape(mode)}":\s*)"[^"\\]*(?:\\.[^"\\]*)*"'
         replacement = rf'\g<1>"{escaped}"'
         new_src = re.sub(pattern, replacement, src, count=1)
         if new_src == src:
             return False
         write_file(AI_ROUTER, new_src)
-        # Sync to repo too
         repo_router = os.path.join(SCRIPT_DIR, "ai_router.py")
         if os.path.exists(repo_router) and repo_router != AI_ROUTER:
             write_file(repo_router, new_src)
@@ -111,12 +168,70 @@ def write_prompt_to_router(mode: str, new_prompt: str) -> bool:
     except Exception:
         return False
 
+def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool) -> bool:
+    """Injects a new AI mode into ai_router.py and tinc.yml."""
+    try:
+        backup_file(AI_ROUTER)
+        backup_file(TINC_YML)
+        
+        # 1. Update ai_router.py
+        router_src = read_file(AI_ROUTER)
+        
+        # Inject into SUFFIX_MAP
+        # Find closing brace of SUFFIX_MAP
+        suffix_insert_point = re.search(r"SUFFIX_MAP\s*=\s*\{.*?(?=\n\})", router_src, re.DOTALL)
+        if not suffix_insert_point: return False
+        map_entry = f'\n    "{suffix}": ("{suffix}", {"True" if web else "False"}, False, 0),'
+        router_src = router_src[:suffix_insert_point.end()] + map_entry + router_src[suffix_insert_point.end():]
+        
+        # Inject into SYSTEM_PROMPTS
+        prompt_insert_point = re.search(r"SYSTEM_PROMPTS\s*=\s*\{.*?(?=\n\})", router_src, re.DOTALL)
+        if not prompt_insert_point: return False
+        escaped_prompt = prompt.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        sys_entry = f'\n    "{suffix}": "{escaped_prompt}",'
+        router_src = router_src[:prompt_insert_point.end()] + sys_entry + router_src[prompt_insert_point.end():]
+        
+        # Inject into CODE_MODES if needed
+        if is_code:
+            code_modes_match = re.search(r"CODE_MODES\s*=\s*\{(.*?)\}", router_src, re.DOTALL)
+            if code_modes_match:
+                inner_text = code_modes_match.group(1).strip()
+                if inner_text and not inner_text.endswith(","):
+                    inner_text += ","
+                new_inner_text = inner_text + f' "{suffix}"' if not inner_text.endswith(",") else inner_text + f'"{suffix}"'
+                # Just replace the whole group
+                router_src = router_src[:code_modes_match.start(1)] + new_inner_text + router_src[code_modes_match.end(1):]
+        
+        write_file(AI_ROUTER, router_src)
+        
+        # 2. Update tinc.yml
+        yml_src = read_file(TINC_YML)
+        
+        regex_entry = f'''
+  - regex: "\\\\[(?P<prompt>[^\\\\]]*)\\\\](?P<suffix>w?{suffix})$"
+    replace: "{{{{out}}}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{{{suffix}}}} ESPANSO_TEXT='{{{{prompt}}}}' python3 ~/.config/espanso/scripts/ai_router.py"
+'''
+        insert_marker = "  # ═══════════════════════════════════════════════════════════\n  #  CLIPBOARD VARIANTS"
+        if insert_marker in yml_src:
+            yml_src = yml_src.replace(insert_marker, regex_entry + "\n" + insert_marker, 1)
+        else:
+            yml_src = yml_src.rstrip() + "\n" + regex_entry
+            
+        write_file(TINC_YML, yml_src)
+        return True
+    except Exception as e:
+        print("Error adding ai shortcut:", e)
+        return False
+
 def extract_shortcuts_from_yml() -> list:
-    """Parse simple (non-regex) trigger shortcuts from tinc.yml."""
     try:
         src = read_file(TINC_YML)
         shortcuts = []
-        # Match: - trigger: "TSVH0" / replace: "The Sanskar Valley..."
         for m in re.finditer(
             r'-\s+trigger:\s+"([^"]+)"\s*\n\s+replace:\s+"([^"]+)"',
             src
@@ -127,16 +242,14 @@ def extract_shortcuts_from_yml() -> list:
         return []
 
 def add_shortcut_to_yml(trigger: str, replace: str) -> bool:
-    """Append a simple trigger/replace pair to tinc.yml before the MISC section."""
     try:
+        backup_file(TINC_YML)
         src = read_file(TINC_YML)
         entry = f'\n  - trigger: "{trigger}"\n    replace: "{replace}"\n'
-        # Insert before the MISC section header or before the first regex
         insert_marker = "  # ─────────────────────────────────────────────────────────\n  # MISC"
         if insert_marker in src:
             src = src.replace(insert_marker, entry + insert_marker, 1)
         else:
-            # Append near end of matches section
             src = src.rstrip() + "\n" + entry
         write_file(TINC_YML, src)
         repo_yml = os.path.join(os.path.dirname(SCRIPT_DIR), "match", "tinc.yml")
@@ -147,8 +260,8 @@ def add_shortcut_to_yml(trigger: str, replace: str) -> bool:
         return False
 
 def delete_shortcut_from_yml(trigger: str) -> bool:
-    """Remove a simple trigger/replace pair from tinc.yml."""
     try:
+        backup_file(TINC_YML)
         src = read_file(TINC_YML)
         pattern = rf'\n  - trigger: "{re.escape(trigger)}"\n    replace: "[^"]*"\n'
         new_src = re.sub(pattern, "\n", src, count=1)
@@ -179,6 +292,7 @@ class H(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         p = urllib.parse.urlparse(self.path).path
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
 
         if p in ("/", "/index.html"):
             return self._file(os.path.join(UI_DIR, "index.html"), "text/html")
@@ -205,6 +319,12 @@ class H(http.server.BaseHTTPRequestHandler):
 
         if p == "/api/espanso-cfg":
             return self._json({"content": read_file(ESPANSO_CFG)})
+            
+        if p == "/api/backups":
+            filename = query.get("file", [""])[0]
+            if filename not in ["config.json", "tinc.yml", "default.yml", "ai_router.py"]:
+                return self._json({"error": "Invalid file"}, 400)
+            return self._json({"backups": get_backups(filename)})
 
         if p == "/api/espanso/status":
             r = espanso_run(["status"])
@@ -257,6 +377,16 @@ class H(http.server.BaseHTTPRequestHandler):
             ok = write_prompt_to_router(mode, prompt)
             return self._json({"ok": ok})
 
+        if p == "/api/ai-shortcuts/add":
+            suffix = d.get("suffix", "").strip()
+            prompt = d.get("prompt", "").strip()
+            web = d.get("web", False)
+            is_code = d.get("is_code", False)
+            if not suffix or not prompt:
+                return self._json({"ok": False, "error": "Suffix and prompt required"})
+            ok = add_ai_shortcut(suffix, web, prompt, is_code)
+            return self._json({"ok": ok})
+
         if p == "/api/shortcuts/add":
             ok = add_shortcut_to_yml(d.get("trigger", ""), d.get("replace", ""))
             return self._json({"ok": ok})
@@ -266,6 +396,7 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json({"ok": ok})
 
         if p == "/api/tinc-yml":
+            backup_file(TINC_YML)
             write_file(TINC_YML, d.get("content", ""))
             repo = os.path.join(os.path.dirname(SCRIPT_DIR), "match", "tinc.yml")
             if os.path.exists(repo):
@@ -273,8 +404,17 @@ class H(http.server.BaseHTTPRequestHandler):
             return self._json({"ok": True})
 
         if p == "/api/espanso-cfg":
+            backup_file(ESPANSO_CFG)
             write_file(ESPANSO_CFG, d.get("content", ""))
             return self._json({"ok": True})
+            
+        if p == "/api/backups/restore":
+            filename = d.get("filename", "")
+            backup_id = d.get("backup_id", "")
+            if not filename or not backup_id:
+                return self._json({"ok": False})
+            ok = restore_backup(filename, backup_id)
+            return self._json({"ok": ok})
 
         if p == "/api/espanso/restart":
             r = espanso_run(["restart"])
