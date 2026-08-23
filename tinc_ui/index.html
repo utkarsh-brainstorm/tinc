@@ -370,7 +370,7 @@ tr:hover td { background: var(--bg); }
   </div>
   <div class="topnav-links">
     <a href="#shortcuts" class="topnav-link">Shortcuts</a>
-    <a href="#ai-shortcuts" class="topnav-link">AI Builder</a>
+    <a href="#smart-commands" class="topnav-link">Smart Commands</a>
     <a href="#prompts" class="topnav-link">System Prompts</a>
     <a href="#files" class="topnav-link">Files</a>
     <a href="#apikeys" class="topnav-link">Settings</a>
@@ -414,17 +414,17 @@ tr:hover td { background: var(--bg); }
     </div>
   </section>
 
-  <!-- AI BUILDER -->
-  <section id="ai-shortcuts">
+  <!-- SMART COMMANDS -->
+  <section id="smart-commands">
     <div class="section-header">
-      <h2 class="section-title">AI Shortcut Builder</h2>
-      <p class="section-desc">Create new AI commands dynamically without manually editing code.</p>
+      <h2 class="section-title">Smart Commands Generator</h2>
+      <p class="section-desc">Create dynamic text generation commands without editing code.</p>
     </div>
 
     <div class="card">
       <div class="card-body">
-        <div style="display:flex; flex-wrap:wrap; gap: 24px;">
-          <div style="flex:1; min-width:300px;">
+        <div style="display:block;">
+          <div style="margin-bottom: 20px;">
             <div class="field">
               <label>Trigger Suffix</label>
               <input type="text" id="ai-suffix" placeholder="e.g. sql" pattern="[a-z0-9]+">
@@ -444,22 +444,22 @@ tr:hover td { background: var(--bg); }
             <div style="font-size:12px; color:var(--text-3); margin-left:28px; margin-bottom:16px;">Automatically strips markdown fences (<code>```</code>) from the output.</div>
           </div>
           
-          <div style="flex:1; min-width:300px; display:flex; flex-direction:column;">
-            <div class="field" style="flex:1; display:flex; flex-direction:column;">
+          <div style="margin-bottom: 20px;">
+            <div class="field">
               <label>System Prompt</label>
-              <textarea id="ai-prompt" placeholder="e.g. Write ONLY valid SQL. No explanations." style="flex:1; min-height:150px;"></textarea>
+              <textarea id="ai-prompt" placeholder="e.g. Write ONLY valid SQL. No explanations." style="min-height:150px; width:100%;"></textarea>
             </div>
           </div>
         </div>
         <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:24px; display:flex; justify-content:flex-end;">
-          <button class="btn btn-primary" id="btn-add-ai">Create AI Shortcut</button>
+          <button class="btn btn-primary" id="btn-add-ai">Create Command</button>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-top:24px;">
       <div class="card-header">
-        <span class="card-title">Configured AI Shortcuts</span>
+        <span class="card-title">Configured Commands</span>
       </div>
       <div class="table-wrap">
         <table>
