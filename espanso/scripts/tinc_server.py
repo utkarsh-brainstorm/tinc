@@ -1,263 +1,286 @@
 #!/usr/bin/env python3
 """
-tinc_server.py — Lightweight Control Panel server for Tinc.
+tinc_server.py — Tinc Control Panel backend.
 
-Zero external dependencies. Uses Python's built-in http.server.
-Binds to 127.0.0.1:9876 only (never exposed to network).
-
-Launch:  python3 tinc_server.py
-         → opens http://localhost:9876 in default browser
+Zero external dependencies. Python stdlib only.
+Binds to 127.0.0.1:9876.
 """
 import http.server
 import json
 import os
+import re
 import sys
 import subprocess
 import urllib.parse
 import webbrowser
 import threading
-import re
 
-# ─── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
-# UI can live in several places depending on install vs repo dev
 _CANDIDATES = [
-    os.path.join(os.path.dirname(os.path.dirname(SCRIPT_DIR)), "tinc_ui"),  # repo: tinc/tinc_ui
-    os.path.join(os.path.dirname(SCRIPT_DIR), "tinc_ui"),                    # installed: espanso/tinc_ui
-    os.path.expanduser("~/.config/tinc_ui"),                                 # user config
+    os.path.join(os.path.dirname(os.path.dirname(SCRIPT_DIR)), "tinc_ui"),
+    os.path.join(os.path.dirname(SCRIPT_DIR), "tinc_ui"),
+    os.path.expanduser("~/.config/tinc_ui"),
 ]
 UI_DIR = next((p for p in _CANDIDATES if os.path.isdir(p)), _CANDIDATES[0])
-CONFIG_PATH = os.path.expanduser("~/.config/tinc/config.json")
-ESPANSO_BIN = os.path.expanduser("~/.local/bin/espanso")
 
-# Import tinc modules
+CONFIG_PATH       = os.path.expanduser("~/.config/tinc/config.json")
+TINC_YML          = os.path.expanduser("~/.config/espanso/match/tinc.yml")
+ESPANSO_CFG       = os.path.expanduser("~/.config/espanso/config/default.yml")
+AI_ROUTER         = os.path.expanduser("~/.config/espanso/scripts/ai_router.py")
+ESPANSO_BIN       = os.path.expanduser("~/.local/bin/espanso")
+
 sys.path.insert(0, SCRIPT_DIR)
-import tinc_client
-import ai_router
 
 HOST = "127.0.0.1"
 PORT = 9876
 
 
-# ─── Config helpers ───────────────────────────────────────────────────────────
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def read_file(path: str) -> str:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"# Error reading file: {e}"
+
+def write_file(path: str, content: str) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
 
 def read_config() -> dict:
-    if not os.path.exists(CONFIG_PATH):
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
         return {}
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
 
 def write_config(cfg: dict) -> None:
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
 
-def mask_key(key: str) -> str:
-    """Mask an API key, showing only last 4 chars."""
+def mask(key: str) -> str:
     if not key or len(key) < 8:
-        return "****"
+        return "••••"
     return "•" * (len(key) - 4) + key[-4:]
 
-
-# ─── Espanso helpers ─────────────────────────────────────────────────────────
-
-def espanso_status() -> dict:
+def espanso_run(args: list) -> dict:
     try:
-        r = subprocess.run([ESPANSO_BIN, "status"],
-                           capture_output=True, text=True, timeout=5)
-        running = "running" in r.stdout.lower()
-        return {"running": running, "output": r.stdout.strip()}
-    except Exception as e:
-        return {"running": False, "output": str(e)}
-
-def espanso_restart() -> dict:
-    try:
-        r = subprocess.run([ESPANSO_BIN, "restart"],
+        r = subprocess.run([ESPANSO_BIN] + args,
                            capture_output=True, text=True, timeout=10)
-        return {"success": r.returncode == 0, "output": r.stdout.strip() + r.stderr.strip()}
+        return {"ok": r.returncode == 0, "out": (r.stdout + r.stderr).strip()}
     except Exception as e:
-        return {"success": False, "output": str(e)}
+        return {"ok": False, "out": str(e)}
+
+def extract_prompts_from_router() -> dict:
+    """Parse SYSTEM_PROMPTS dict from ai_router.py source."""
+    try:
+        src = read_file(AI_ROUTER)
+        # Find the SYSTEM_PROMPTS dict block
+        m = re.search(r"SYSTEM_PROMPTS\s*=\s*\{(.+?)\n\}", src, re.DOTALL)
+        if not m:
+            return {}
+        block = m.group(1)
+        # Extract key: "value" pairs (handles multi-line strings via naive regex)
+        prompts = {}
+        for km in re.finditer(r'"(\w+)":\s*"((?:[^"\\]|\\.)*)"', block):
+            prompts[km.group(1)] = km.group(2).replace("\\n", "\n").replace('\\"', '"')
+        return prompts
+    except Exception:
+        return {}
+
+def write_prompt_to_router(mode: str, new_prompt: str) -> bool:
+    """Patch a single SYSTEM_PROMPTS entry in ai_router.py."""
+    try:
+        src = read_file(AI_ROUTER)
+        escaped = new_prompt.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+        # Replace the value for this key
+        pattern = rf'("{re.escape(mode)}":\s*)"[^"\\]*(?:\\.[^"\\]*)*"'
+        replacement = rf'\g<1>"{escaped}"'
+        new_src = re.sub(pattern, replacement, src, count=1)
+        if new_src == src:
+            return False
+        write_file(AI_ROUTER, new_src)
+        # Sync to repo too
+        repo_router = os.path.join(SCRIPT_DIR, "ai_router.py")
+        if os.path.exists(repo_router) and repo_router != AI_ROUTER:
+            write_file(repo_router, new_src)
+        return True
+    except Exception:
+        return False
+
+def extract_shortcuts_from_yml() -> list:
+    """Parse simple (non-regex) trigger shortcuts from tinc.yml."""
+    try:
+        src = read_file(TINC_YML)
+        shortcuts = []
+        # Match: - trigger: "TSVH0" / replace: "The Sanskar Valley..."
+        for m in re.finditer(
+            r'-\s+trigger:\s+"([^"]+)"\s*\n\s+replace:\s+"([^"]+)"',
+            src
+        ):
+            shortcuts.append({"trigger": m.group(1), "replace": m.group(2)})
+        return shortcuts
+    except Exception:
+        return []
+
+def add_shortcut_to_yml(trigger: str, replace: str) -> bool:
+    """Append a simple trigger/replace pair to tinc.yml before the MISC section."""
+    try:
+        src = read_file(TINC_YML)
+        entry = f'\n  - trigger: "{trigger}"\n    replace: "{replace}"\n'
+        # Insert before the MISC section header or before the first regex
+        insert_marker = "  # ─────────────────────────────────────────────────────────\n  # MISC"
+        if insert_marker in src:
+            src = src.replace(insert_marker, entry + insert_marker, 1)
+        else:
+            # Append near end of matches section
+            src = src.rstrip() + "\n" + entry
+        write_file(TINC_YML, src)
+        repo_yml = os.path.join(os.path.dirname(SCRIPT_DIR), "match", "tinc.yml")
+        if os.path.exists(repo_yml):
+            write_file(repo_yml, src)
+        return True
+    except Exception:
+        return False
+
+def delete_shortcut_from_yml(trigger: str) -> bool:
+    """Remove a simple trigger/replace pair from tinc.yml."""
+    try:
+        src = read_file(TINC_YML)
+        pattern = rf'\n  - trigger: "{re.escape(trigger)}"\n    replace: "[^"]*"\n'
+        new_src = re.sub(pattern, "\n", src, count=1)
+        if new_src == src:
+            return False
+        write_file(TINC_YML, new_src)
+        return True
+    except Exception:
+        return False
 
 
-# ─── Request Handler ─────────────────────────────────────────────────────────
+# ─── Handler ──────────────────────────────────────────────────────────────────
 
-class TincHandler(http.server.BaseHTTPRequestHandler):
-    """Handles REST API + static file serving."""
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
 
-    def log_message(self, format, *args):
-        """Suppress default access logs for cleaner terminal output."""
-        pass
-
-    def _json_response(self, data: dict, status: int = 200):
-        body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    def _json(self, data, status=200):
+        body = json.dumps(data, ensure_ascii=False).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
 
-    def _read_body(self) -> dict:
-        length = int(self.headers.get("Content-Length", 0))
-        if length == 0:
-            return {}
-        raw = self.rfile.read(length)
-        return json.loads(raw.decode("utf-8"))
-
-    # ── GET routes ────────────────────────────────────────────────────────
+    def _body(self):
+        n = int(self.headers.get("Content-Length", 0))
+        return json.loads(self.rfile.read(n)) if n else {}
 
     def do_GET(self):
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
+        p = urllib.parse.urlparse(self.path).path
 
-        if path == "/" or path == "/index.html":
-            self._serve_file(os.path.join(UI_DIR, "index.html"), "text/html")
+        if p in ("/", "/index.html"):
+            return self._file(os.path.join(UI_DIR, "index.html"), "text/html")
 
-        elif path == "/api/config":
+        if p == "/api/config":
             cfg = read_config()
-            # Mask keys for safety
-            masked = {
-                "gemini_api_key": mask_key(cfg.get("gemini_api_key", "")),
-                "gemini_model": cfg.get("gemini_model", "gemini-2.5-flash-lite"),
-                "groq_api_keys": [mask_key(k) for k in cfg.get("groq_api_keys", [])],
-                "groq_model": cfg.get("groq_model", "llama-3.3-70b-versatile"),
-                "has_gemini_key": bool(cfg.get("gemini_api_key", "").strip()),
-                "has_groq_keys": any(k.strip() for k in cfg.get("groq_api_keys", [])),
+            return self._json({
+                "gemini_api_key": mask(cfg.get("gemini_api_key", "")),
+                "gemini_model":   cfg.get("gemini_model", "gemini-2.5-flash-lite"),
+                "groq_api_keys":  [mask(k) for k in cfg.get("groq_api_keys", [])],
+                "groq_model":     cfg.get("groq_model", "llama-3.3-70b-versatile"),
                 "groq_key_count": len(cfg.get("groq_api_keys", [])),
-            }
-            self._json_response(masked)
+                "has_gemini":     bool(cfg.get("gemini_api_key", "").strip()),
+            })
 
-        elif path == "/api/suffixes":
-            suffixes = {}
-            for key, (mode, web, clip, paste) in ai_router.SUFFIX_MAP.items():
-                suffixes[key] = {
-                    "mode": mode,
-                    "web_search": web,
-                    "use_clipboard": clip,
-                    "paste_mode": paste,
-                    "paste_mode_label": ["Shift+Insert", "Ctrl+Shift+V"][paste] if paste < 2 else "type",
-                }
-            self._json_response({"suffixes": suffixes})
+        if p == "/api/prompts":
+            return self._json({"prompts": extract_prompts_from_router()})
 
-        elif path == "/api/prompts":
-            self._json_response({"prompts": dict(ai_router.SYSTEM_PROMPTS)})
+        if p == "/api/shortcuts":
+            return self._json({"shortcuts": extract_shortcuts_from_yml()})
 
-        elif path == "/api/espanso/status":
-            self._json_response(espanso_status())
+        if p == "/api/tinc-yml":
+            return self._json({"content": read_file(TINC_YML)})
 
-        elif path == "/api/logs":
-            out_log = ""
-            err_log = ""
-            try:
-                with open("/tmp/tinc_worker.out", "r") as f:
-                    out_log = f.read()[-5000:]  # last 5KB
-            except Exception:
-                pass
-            try:
-                with open("/tmp/tinc_worker.err", "r") as f:
-                    err_log = f.read()[-5000:]
-            except Exception:
-                pass
-            self._json_response({"stdout": out_log, "stderr": err_log})
+        if p == "/api/espanso-cfg":
+            return self._json({"content": read_file(ESPANSO_CFG)})
 
-        elif path.startswith("/api/"):
-            self._json_response({"error": "Not found"}, 404)
+        if p == "/api/espanso/status":
+            r = espanso_run(["status"])
+            return self._json({"running": "running" in r["out"].lower(), "out": r["out"]})
 
-        else:
-            # Try serving static files from UI_DIR
-            safe_path = path.lstrip("/")
-            file_path = os.path.join(UI_DIR, safe_path)
-            if os.path.isfile(file_path):
-                ctype = "text/html"
-                if file_path.endswith(".css"):
-                    ctype = "text/css"
-                elif file_path.endswith(".js"):
-                    ctype = "application/javascript"
-                elif file_path.endswith(".png"):
-                    ctype = "image/png"
-                elif file_path.endswith(".svg"):
-                    ctype = "image/svg+xml"
-                self._serve_file(file_path, ctype)
-            else:
-                self._json_response({"error": "Not found"}, 404)
+        if p == "/api/logs":
+            return self._json({
+                "stdout": self._tail("/tmp/tinc_worker.out"),
+                "stderr": self._tail("/tmp/tinc_worker.err"),
+            })
 
-    # ── POST routes ───────────────────────────────────────────────────────
+        if p.startswith("/api/"):
+            return self._json({"error": "not found"}, 404)
+
+        # static fallback
+        fp = os.path.join(UI_DIR, p.lstrip("/"))
+        if os.path.isfile(fp):
+            ct = {"css": "text/css", "js": "application/javascript"}.get(fp.rsplit(".", 1)[-1], "text/plain")
+            return self._file(fp, ct)
+        self._json({"error": "not found"}, 404)
 
     def do_POST(self):
-        path = urllib.parse.urlparse(self.path).path
+        p = urllib.parse.urlparse(self.path).path
+        d = self._body()
 
-        if path == "/api/config":
-            data = self._read_body()
+        if p == "/api/config":
             cfg = read_config()
-            # Only update fields that are provided and not masked
-            if "gemini_api_key" in data and "••••" not in data["gemini_api_key"]:
-                cfg["gemini_api_key"] = data["gemini_api_key"]
-            if "gemini_model" in data:
-                cfg["gemini_model"] = data["gemini_model"]
-            if "groq_api_keys" in data:
-                # Only update keys that aren't masked
-                new_keys = []
-                old_keys = cfg.get("groq_api_keys", [])
-                for i, k in enumerate(data["groq_api_keys"]):
-                    if "••••" in k or "•" in k:
-                        # Keep old key
-                        if i < len(old_keys):
-                            new_keys.append(old_keys[i])
-                    else:
-                        new_keys.append(k)
-                cfg["groq_api_keys"] = new_keys
-            if "groq_model" in data:
-                cfg["groq_model"] = data["groq_model"]
+            gk = d.get("gemini_api_key", "")
+            if gk and "•" not in gk:
+                cfg["gemini_api_key"] = gk
+            if "gemini_model" in d:
+                cfg["gemini_model"] = d["gemini_model"]
+            if "groq_model" in d:
+                cfg["groq_model"] = d["groq_model"]
+            if "groq_api_keys" in d:
+                old = cfg.get("groq_api_keys", [])
+                new = []
+                for i, k in enumerate(d["groq_api_keys"]):
+                    if "•" in k and i < len(old):
+                        new.append(old[i])
+                    elif "•" not in k and k.strip():
+                        new.append(k)
+                cfg["groq_api_keys"] = new
             write_config(cfg)
-            self._json_response({"success": True})
+            return self._json({"ok": True})
 
-        elif path == "/api/prompts":
-            data = self._read_body()
-            mode = data.get("mode", "")
-            prompt = data.get("prompt", "")
-            if mode and mode in ai_router.SYSTEM_PROMPTS:
-                ai_router.SYSTEM_PROMPTS[mode] = prompt
-                self._json_response({"success": True})
-            else:
-                self._json_response({"error": f"Unknown mode: {mode}"}, 400)
+        if p == "/api/prompts":
+            mode = d.get("mode", "")
+            prompt = d.get("prompt", "")
+            ok = write_prompt_to_router(mode, prompt)
+            return self._json({"ok": ok})
 
-        elif path == "/api/test":
-            data = self._read_body()
-            prompt = data.get("prompt", "Hello")
-            mode = data.get("mode", "ai")
-            web_search = data.get("web_search", False)
-            try:
-                msgs = ai_router.build_messages(mode, prompt)
-                result = tinc_client.chat(msgs, web_search=web_search)
-                if mode in ai_router.CODE_MODES:
-                    result = ai_router.strip_code_fences(result or "")
-                self._json_response({"result": result or "(empty response)"})
-            except Exception as e:
-                self._json_response({"error": str(e)}, 500)
+        if p == "/api/shortcuts/add":
+            ok = add_shortcut_to_yml(d.get("trigger", ""), d.get("replace", ""))
+            return self._json({"ok": ok})
 
-        elif path == "/api/espanso/restart":
-            self._json_response(espanso_restart())
+        if p == "/api/shortcuts/delete":
+            ok = delete_shortcut_from_yml(d.get("trigger", ""))
+            return self._json({"ok": ok})
 
-        elif path == "/api/test-key":
-            data = self._read_body()
-            provider = data.get("provider", "gemini")
-            key = data.get("key", "")
-            try:
-                test_msgs = [{"role": "user", "content": "Say 'OK' and nothing else."}]
-                if provider == "gemini":
-                    test_cfg = {"gemini_api_key": key, "gemini_model": data.get("model", "gemini-2.5-flash-lite")}
-                    result = tinc_client._gemini_chat(test_msgs, test_cfg, web_search=False)
-                    self._json_response({"success": True, "response": result.strip()})
-                else:
-                    result = tinc_client._groq_chat(test_msgs, key, data.get("model", "llama-3.3-70b-versatile"))
-                    self._json_response({"success": True, "response": result.strip()})
-            except Exception as e:
-                self._json_response({"success": False, "error": str(e)}, 200)
+        if p == "/api/tinc-yml":
+            write_file(TINC_YML, d.get("content", ""))
+            repo = os.path.join(os.path.dirname(SCRIPT_DIR), "match", "tinc.yml")
+            if os.path.exists(repo):
+                write_file(repo, d.get("content", ""))
+            return self._json({"ok": True})
 
-        else:
-            self._json_response({"error": "Not found"}, 404)
+        if p == "/api/espanso-cfg":
+            write_file(ESPANSO_CFG, d.get("content", ""))
+            return self._json({"ok": True})
 
-    # ── OPTIONS (CORS preflight) ──────────────────────────────────────────
+        if p == "/api/espanso/restart":
+            r = espanso_run(["restart"])
+            return self._json(r)
+
+        self._json({"error": "not found"}, 404)
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -266,39 +289,37 @@ class TincHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    # ── File serving helper ───────────────────────────────────────────────
-
-    def _serve_file(self, filepath: str, content_type: str):
+    def _file(self, path, ct):
         try:
-            with open(filepath, "rb") as f:
+            with open(path, "rb") as f:
                 data = f.read()
             self.send_response(200)
-            self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+            self.send_header("Content-Type", f"{ct}; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
             self.wfile.write(data)
         except FileNotFoundError:
-            self._json_response({"error": "File not found"}, 404)
+            self._json({"error": "file not found"}, 404)
 
+    @staticmethod
+    def _tail(path, n=5000):
+        try:
+            with open(path) as f:
+                return f.read()[-n:]
+        except Exception:
+            return ""
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    server = http.server.HTTPServer((HOST, PORT), TincHandler)
+    server = http.server.HTTPServer((HOST, PORT), H)
     url = f"http://{HOST}:{PORT}"
-    print(f"\033[1;36m╔══════════════════════════════════════╗\033[0m")
-    print(f"\033[1;36m║   Tinc Control Panel                 ║\033[0m")
-    print(f"\033[1;36m║   {url}              ║\033[0m")
-    print(f"\033[1;36m╚══════════════════════════════════════╝\033[0m")
-    print(f"\033[0;90mPress Ctrl+C to stop.\033[0m\n")
-
-    # Open browser after a short delay
+    print(f"\033[1m Tinc Control Panel → {url}\033[0m")
+    print(" Press Ctrl+C to stop.\n")
     threading.Timer(0.5, lambda: webbrowser.open(url)).start()
-
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n\033[0;90mTinc Control Panel stopped.\033[0m")
+        print("\n Stopped.")
         server.server_close()
 
 

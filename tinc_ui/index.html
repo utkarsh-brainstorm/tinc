@@ -1,1317 +1,1198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tinc Control Panel</title>
-    <style>
-        :root {
-            --bg-base: #0a0a0f;
-            --card-bg: rgba(255, 255, 255, 0.04);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --accent-gradient: linear-gradient(135deg, #7c3aed, #06b6d4);
-            --accent-color: #06b6d4;
-            --accent-glow: rgba(6, 182, 212, 0.3);
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --success: #10b981;
-            --error: #ef4444;
-            --warning: #f59e0b;
-            --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            --font-mono: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tinc — Control Panel</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+:root {
+  --bg: #f5f5f4;
+  --surface: #ffffff;
+  --border: #e4e4e7;
+  --border-focus: #3b82f6;
+  --text: #18181b;
+  --text-2: #71717a;
+  --text-3: #a1a1aa;
+  --accent: #2563eb;
+  --accent-bg: #eff6ff;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --success: #16a34a;
+  --success-bg: #f0fdf4;
+  --warn-bg: #fffbeb;
+  --warn: #d97706;
+  --sidebar-w: 220px;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  --mono: 'SF Mono', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+}
 
-        body {
-            font-family: var(--font-main);
-            background-color: var(--bg-base);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-            display: flex;
-            height: 100vh;
-        }
+body {
+  font-family: var(--font);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
 
-        /* Typography */
-        h1, h2, h3, h4 {
-            color: var(--text-primary);
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
+/* ── Sidebar ─────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
 
-        h1 { font-size: 1.75rem; }
-        h2 { font-size: 1.5rem; }
-        h3 { font-size: 1.1rem; }
-        
-        .text-gradient {
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+}
 
-        /* Layout */
-        .sidebar {
-            width: 240px;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(20px);
-            border-right: 1px solid var(--card-border);
-            display: flex;
-            flex-direction: column;
-            padding: 1.5rem 0;
-            z-index: 10;
-        }
+.sidebar-logo-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  flex-shrink: 0;
+}
 
-        .brand {
-            padding: 0 1.5rem 2rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 1.5rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
+.sidebar-logo-text {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+}
 
-        .nav-menu {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+.sidebar-logo-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1;
+}
 
-        .nav-item {
-            padding: 0.75rem 1.5rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--text-secondary);
-            transition: var(--transition);
-            border-left: 3px solid transparent;
-            font-weight: 500;
-        }
+.nav {
+  padding: 10px 8px;
+  flex: 1;
+}
 
-        .nav-item:hover {
-            background: var(--card-bg);
-            color: var(--text-primary);
-        }
+.nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding: 12px 8px 4px;
+}
 
-        .nav-item.active {
-            background: linear-gradient(90deg, rgba(124, 58, 237, 0.1), transparent);
-            color: var(--text-primary);
-            border-left-color: var(--accent-color);
-        }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-2);
+  font-weight: 500;
+  transition: background 0.1s, color 0.1s;
+  user-select: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
 
-        .main-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem 3rem;
-            position: relative;
-        }
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active { background: var(--accent-bg); color: var(--accent); }
 
-        .page {
-            display: none;
-            animation: fadeInSlideUp 0.4s ease-out forwards;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+.nav-icon { font-size: 14px; width: 16px; text-align: center; flex-shrink: 0; }
 
-        .page.active {
-            display: block;
-        }
+.espanso-status {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
 
-        /* Animations */
-        @keyframes fadeInSlideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex-shrink: 0;
+}
+.dot.on { background: var(--success); }
+.dot.off { background: var(--danger); }
 
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
+/* ── Main ─────────────────────────────────── */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
 
-        @keyframes slideInRight {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
+.topbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
 
-        /* Components */
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            backdrop-filter: blur(20px);
-            transition: var(--transition);
-        }
+.topbar-desc {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-top: 1px;
+}
 
-        .card:hover {
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-        }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-        .grid {
-            display: grid;
-            gap: 1.5rem;
-        }
+.content {
+  padding: 24px 28px;
+  flex: 1;
+}
 
-        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
-        .grid-4 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+/* ── Pages ────────────────────────────────── */
+.page { display: none; }
+.page.active { display: block; }
 
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
+/* ── Components ───────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
 
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
+.card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
-        .form-control {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--card-border);
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
-            color: var(--text-primary);
-            font-family: var(--font-main);
-            transition: var(--transition);
-            outline: none;
-        }
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+}
 
-        .form-control:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 2px var(--accent-glow);
-        }
-        
-        textarea.form-control {
-            resize: vertical;
-            min-height: 100px;
-        }
+.card-body { padding: 18px; }
 
-        /* Toggle Switch */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 44px;
-            height: 24px;
-        }
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.1s;
+  white-space: nowrap;
+  font-family: var(--font);
+  line-height: 1;
+}
 
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-primary:active { background: #1e40af; }
 
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(255,255,255,0.1);
-            transition: .4s;
-            border-radius: 24px;
-        }
+.btn-default {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-default:hover { background: var(--bg); }
 
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 3px;
-            bottom: 3px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
+.btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; }
+.btn-danger:hover { background: #fee2e2; }
 
-        input:checked + .slider {
-            background: var(--accent-gradient);
-        }
+.btn-ghost { background: transparent; color: var(--text-2); }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
 
-        input:checked + .slider:before {
-            transform: translateX(20px);
-        }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
 
-        .toggle-group {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-        }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 0.75rem 1.25rem;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            font-family: var(--font-main);
-        }
+/* Form elements */
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
 
-        .btn-primary {
-            background: var(--accent-gradient);
-            color: white;
-        }
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 5px;
+}
 
-        .btn-primary:hover {
-            box-shadow: 0 0 15px var(--accent-glow);
-            transform: translateY(-1px);
-        }
+input[type=text],
+input[type=password],
+select,
+textarea {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  line-height: 1.5;
+}
 
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.08);
-            color: var(--text-primary);
-        }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
 
-        .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
+textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
 
-        .btn-danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--error);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-        
-        .btn-danger:hover {
-            background: rgba(239, 68, 68, 0.3);
-        }
+.input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.input-row > :first-child { flex: 1; }
 
-        .btn-sm {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.85rem;
-        }
+/* Table */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
 
-        /* Status Dot */
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            display: inline-block;
-        }
+th {
+  text-align: left;
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
 
-        .status-dot.active {
-            background-color: var(--success);
-            animation: pulse 2s infinite;
-        }
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  vertical-align: middle;
+}
 
-        .status-dot.inactive {
-            background-color: var(--error);
-        }
+tr:last-child td { border-bottom: 0; }
+tr:hover td { background: #fafafa; }
 
-        /* Badges */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            background: rgba(255,255,255,0.1);
-        }
+.mono { font-family: var(--mono); font-size: 12px; }
 
-        .badge-search { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
-        .badge-clip { background: rgba(124, 58, 237, 0.2); color: #c4b5fd; }
-        .badge-mode { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.badge-blue { background: var(--accent-bg); color: var(--accent); border-color: #bfdbfe; }
+.badge-green { background: var(--success-bg); color: var(--success); border-color: #bbf7d0; }
 
-        /* Specific Page Styles */
-        
-        /* Dashboard */
-        .stat-card {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-        }
+/* Code editor area */
+.code-editor {
+  width: 100%;
+  background: #fafafa;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
 
-        /* API Keys */
-        .input-group {
-            display: flex;
-            gap: 10px;
-        }
-        .key-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        .key-item {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            background: rgba(0,0,0,0.2);
-            padding: 10px;
-            border-radius: 8px;
-            border: 1px solid var(--card-border);
-        }
-        
-        /* Commands */
-        .category-section {
-            margin-bottom: 2rem;
-        }
-        .command-card {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .command-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            font-family: var(--font-mono);
-            color: var(--accent-color);
-        }
-        .command-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
-            margin-top: auto;
-        }
+.code-editor-bar {
+  padding: 9px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-2);
+}
 
-        /* Prompts */
-        .prompts-layout {
-            display: grid;
-            grid-template-columns: 250px 1fr;
-            gap: 2rem;
-            height: calc(100vh - 120px);
-        }
-        .prompts-list {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            overflow-y: auto;
-        }
-        .prompt-item {
-            padding: 10px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        .prompt-item:hover { background: var(--card-bg); }
-        .prompt-item.active {
-            background: rgba(124, 58, 237, 0.2);
-            border-left: 3px solid var(--accent-color);
-        }
-        .prompt-editor {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .prompt-textarea {
-            flex: 1;
-            font-family: var(--font-mono);
-            resize: none;
-            padding: 15px;
-            line-height: 1.5;
-        }
-        
-        /* Logs */
-        .logs-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            height: calc(100vh - 200px);
-        }
-        .log-panel {
-            display: flex;
-            flex-direction: column;
-            background: #000;
-            border-radius: 8px;
-            border: 1px solid var(--card-border);
-            overflow: hidden;
-        }
-        .log-header {
-            padding: 10px 15px;
-            background: rgba(255,255,255,0.05);
-            border-bottom: 1px solid var(--card-border);
-            font-weight: 600;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .log-content {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            font-family: var(--font-mono);
-            font-size: 0.85rem;
-            color: #a3b3cc;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-        .log-content.error {
-            color: #f87171;
-        }
+.code-editor textarea {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  border: none;
+  border-radius: 0;
+  background: #fafafa;
+  resize: none;
+  min-height: 420px;
+  width: 100%;
+  padding: 14px 16px;
+  box-shadow: none;
+  color: #27272a;
+}
 
-        /* Espanso */
-        .espanso-status-large {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 4rem 2rem;
-            text-align: center;
-            gap: 2rem;
-        }
-        .pulse-ring {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 3rem;
-            background: rgba(16, 185, 129, 0.1);
-            border: 2px solid var(--success);
-        }
-        .pulse-ring.stopped {
-            background: rgba(239, 68, 68, 0.1);
-            border-color: var(--error);
-        }
-        .pulse-ring::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        .pulse-ring.stopped::before {
-            animation: none;
-        }
+.code-editor textarea:focus {
+  box-shadow: none;
+  border-color: transparent;
+}
 
-        /* Toast */
-        #toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .toast {
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--card-border);
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            animation: slideInRight 0.3s ease-out forwards;
-            min-width: 250px;
-        }
-        .toast.success { border-left: 4px solid var(--success); }
-        .toast.error { border-left: 4px solid var(--error); }
-        .toast.info { border-left: 4px solid var(--accent-color); }
-        
-        .loading-spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
+/* Prompts layout */
+.prompts-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  align-items: start;
+}
 
-        /* Result Area */
-        .result-area {
-            margin-top: 15px;
-            padding: 15px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 8px;
-            border: 1px solid var(--card-border);
-            min-height: 100px;
-            white-space: pre-wrap;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-        }
-        
-    </style>
+.prompt-list { display: flex; flex-direction: column; gap: 1px; }
+
+.prompt-list-item {
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--text-2);
+  transition: all 0.1s;
+  border: 1px solid transparent;
+}
+.prompt-list-item:hover { background: var(--bg); color: var(--text); }
+.prompt-list-item.active { background: var(--accent-bg); color: var(--accent); border-color: #bfdbfe; }
+
+.prompt-editor-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Toast */
+.toast-wrap {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--text);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  animation: slide-in 0.2s ease;
+  pointer-events: all;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 320px;
+}
+.toast.ok { background: #15803d; }
+.toast.err { background: var(--danger); }
+
+@keyframes slide-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Grid layouts */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+
+/* Key row (groq keys list) */
+.key-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.key-row:last-child { border-bottom: 0; }
+.key-row input { flex: 1; }
+
+/* Divider */
+hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+/* Empty state */
+.empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-3);
+}
+.empty-icon { font-size: 32px; margin-bottom: 8px; }
+.empty-text { font-size: 13px; }
+
+/* Logs */
+.log-pane {
+  background: #18181b;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.log-pane-head {
+  background: #27272a;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.log-pane-body {
+  padding: 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.7;
+  color: #d4d4d8;
+  max-height: 320px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.log-pane-body.err { color: #f87171; }
+
+/* Info note */
+.note {
+  background: var(--warn-bg);
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #92400e;
+}
+.note.info { background: var(--accent-bg); border-color: #bfdbfe; color: #1e40af; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 10px; }
+
+/* Test bar at bottom of sidebar */
+.quick-test {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+.quick-test textarea {
+  min-height: 52px;
+  resize: none;
+  font-size: 12.5px;
+}
+.quick-test-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 6px;
+  display: block;
+}
+</style>
 </head>
 <body>
 
-    <nav class="sidebar">
-        <div class="brand">
-            <span class="text-gradient">✨ Tinc</span>
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-mark">Ti</div>
+    <div>
+      <div class="sidebar-logo-text">Tinc</div>
+      <div class="sidebar-logo-sub">Control Panel</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-label">Config</div>
+    <button class="nav-item active" data-page="shortcuts">
+      <span class="nav-icon">⌘</span> Shortcuts
+    </button>
+    <button class="nav-item" data-page="prompts">
+      <span class="nav-icon">✦</span> AI Prompts
+    </button>
+    <button class="nav-item" data-page="apikeys">
+      <span class="nav-icon">⚿</span> API Keys
+    </button>
+
+    <div class="nav-label">Files</div>
+    <button class="nav-item" data-page="tincyml">
+      <span class="nav-icon">≡</span> tinc.yml
+    </button>
+    <button class="nav-item" data-page="espansocfg">
+      <span class="nav-icon">⚙</span> espanso config
+    </button>
+
+    <div class="nav-label">System</div>
+    <button class="nav-item" data-page="espanso">
+      <span class="nav-icon">◎</span> Espanso
+    </button>
+    <button class="nav-item" data-page="logs">
+      <span class="nav-icon">▤</span> Logs
+    </button>
+  </nav>
+
+  <div class="espanso-status">
+    <div class="dot" id="sidebar-dot"></div>
+    <span id="sidebar-status">Checking...</span>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- ─── SHORTCUTS ──────────────────────────── -->
+  <div id="page-shortcuts" class="page active">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Text Shortcuts</div>
+        <div class="topbar-desc">Simple trigger → replace expansions in tinc.yml</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" id="btn-add-shortcut">+ Add Shortcut</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- Add form (hidden by default) -->
+      <div class="card" id="add-shortcut-form" style="display:none; margin-bottom:16px;">
+        <div class="card-header">
+          <span class="card-title">New Shortcut</span>
+          <button class="btn btn-ghost btn-sm" id="btn-cancel-add">Cancel</button>
         </div>
-        <ul class="nav-menu">
-            <li class="nav-item active" data-target="dashboard">
-                📊 Dashboard
-            </li>
-            <li class="nav-item" data-target="api-keys">
-                🔑 API Keys
-            </li>
-            <li class="nav-item" data-target="commands">
-                ⚡ Commands
-            </li>
-            <li class="nav-item" data-target="prompts">
-                📝 System Prompts
-            </li>
-            <li class="nav-item" data-target="espanso">
-                ⚙️ Espanso
-            </li>
-            <li class="nav-item" data-target="logs">
-                📋 Logs
-            </li>
-        </ul>
-    </nav>
-
-    <main class="main-content">
-        <!-- Dashboard -->
-        <section id="dashboard" class="page active">
-            <h1><span class="text-gradient">Dashboard</span></h1>
-            
-            <div class="grid grid-4" style="margin-bottom: 2rem;">
-                <div class="card stat-card">
-                    <span class="form-label">Espanso Status</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span id="dash-espanso-dot" class="status-dot inactive"></span>
-                        <span id="dash-espanso-text" class="stat-value" style="font-size: 1.2rem;">Checking...</span>
-                    </div>
-                </div>
-                <div class="card stat-card">
-                    <span class="form-label">Primary Provider</span>
-                    <span id="dash-provider" class="stat-value" style="font-size: 1.2rem;">-</span>
-                </div>
-                <div class="card stat-card">
-                    <span class="form-label">Fallback Keys (Groq)</span>
-                    <span id="dash-groq-count" class="stat-value">-</span>
-                </div>
-                <div class="card stat-card">
-                    <span class="form-label">Total Commands</span>
-                    <span id="dash-cmd-count" class="stat-value">-</span>
-                </div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="field">
+              <label>Trigger (what you type)</label>
+              <input type="text" id="new-trigger" placeholder="TSVH0" autocomplete="off">
             </div>
-
-            <div class="grid grid-2">
-                <div class="card">
-                    <h2>Quick Test</h2>
-                    <div class="form-group">
-                        <label class="form-label">Prompt</label>
-                        <textarea id="quick-prompt" class="form-control" rows="3" placeholder="Enter text to process..."></textarea>
-                    </div>
-                    <div class="input-group" style="margin-bottom: 1rem;">
-                        <div style="flex: 1;">
-                            <label class="form-label">Mode</label>
-                            <select id="quick-mode" class="form-control"></select>
-                        </div>
-                        <div style="display: flex; align-items: flex-end; padding-bottom: 5px;">
-                            <label class="toggle-group">
-                                <div class="switch">
-                                    <input type="checkbox" id="quick-web">
-                                    <span class="slider"></span>
-                                </div>
-                                <span class="form-label" style="margin:0;">Web Search</span>
-                            </label>
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" onclick="runQuickTest()" id="btn-quick-test">
-                        <span>▶ Run Test</span>
-                    </button>
-                    
-                    <div id="quick-result" class="result-area" style="display: none;"></div>
-                </div>
-                
-                <div class="card">
-                    <h2>Recent Logs</h2>
-                    <div class="log-panel" style="height: 300px;">
-                        <div id="dash-logs" class="log-content">Loading...</div>
-                    </div>
-                </div>
+            <div class="field">
+              <label>Replace (what gets inserted)</label>
+              <input type="text" id="new-replace" placeholder="The Sanskar Valley High Sec School Kannod MP">
             </div>
-        </section>
+          </div>
+          <button class="btn btn-primary" id="btn-save-shortcut">Save Shortcut</button>
+        </div>
+      </div>
 
-        <!-- API Keys -->
-        <section id="api-keys" class="page">
-            <h1><span class="text-gradient">API Configuration</span></h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Configure your primary and fallback AI providers.</p>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">All Shortcuts</span>
+          <span id="shortcuts-count" class="badge" style="font-size:11px;">—</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Trigger</th>
+                <th>Expands to</th>
+                <th style="width:60px;"></th>
+              </tr>
+            </thead>
+            <tbody id="shortcuts-tbody">
+              <tr><td colspan="3"><div class="empty"><div class="empty-text">Loading...</div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-            <div class="grid grid-2">
-                <!-- Gemini -->
-                <div class="card">
-                    <h2 style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: #4285F4;">✦</span> Gemini (Primary)
-                    </h2>
-                    
-                    <div class="form-group">
-                        <label class="form-label">API Key</label>
-                        <div class="input-group">
-                            <input type="password" id="gemini-key" class="form-control" placeholder="AIzaSy...">
-                            <button class="btn btn-secondary" onclick="togglePassword('gemini-key')">👁</button>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Model</label>
-                        <input type="text" id="gemini-model" class="form-control" value="gemini-2.5-flash-lite">
-                    </div>
-                    
-                    <button class="btn btn-secondary btn-sm" onclick="testKey('gemini', 'gemini-key', 'gemini-model')" id="btn-test-gemini">
-                        Test Connection
-                    </button>
-                    <div id="res-test-gemini" style="margin-top:10px; font-size:0.85rem;"></div>
-                </div>
+      <div class="note info" style="margin-top:14px;">
+        AI commands (e.g. <code style="font-family:var(--mono)">[prompt]ai</code>, <code style="font-family:var(--mono)">[text]fix</code>) are regex-based and edited in <strong>tinc.yml</strong>.
+      </div>
+    </div>
+  </div>
 
-                <!-- Groq -->
-                <div class="card">
-                    <h2 style="display: flex; align-items: center; gap: 10px;">
-                        <span style="color: #f97316;">⚡</span> Groq (Fallback)
-                    </h2>
-                    
-                    <div class="form-group">
-                        <label class="form-label">Model</label>
-                        <input type="text" id="groq-model" class="form-control" value="llama-3.3-70b-versatile">
-                    </div>
-                    
-                    <label class="form-label">API Keys</label>
-                    <div id="groq-keys-container" class="key-list">
-                        <!-- Populated dynamically -->
-                    </div>
-                    
-                    <button class="btn btn-secondary btn-sm" onclick="addGroqKeyField()">+ Add Groq Key</button>
-                </div>
+  <!-- ─── AI PROMPTS ─────────────────────────── -->
+  <div id="page-prompts" class="page">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">AI System Prompts</div>
+        <div class="topbar-desc">Edit the instructions given to the AI for each mode</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="prompts-layout">
+        <!-- Mode list -->
+        <div class="card" style="padding:8px;">
+          <div id="prompt-list" class="prompt-list">
+            <div style="padding:12px;color:var(--text-3);font-size:12px;">Loading...</div>
+          </div>
+        </div>
+
+        <!-- Editor -->
+        <div class="prompt-editor-pane" id="prompt-editor-pane">
+          <div class="empty" style="border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);">
+            <div class="empty-icon">✦</div>
+            <div class="empty-text">Select a mode from the left</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── API KEYS ────────────────────────────── -->
+  <div id="page-apikeys" class="page">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">API Keys</div>
+        <div class="topbar-desc">Gemini is primary, Groq keys are fallbacks in order</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" id="btn-save-config">Save</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="grid-2">
+        <div class="stack">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Google Gemini</span>
+              <span class="badge badge-blue">Primary</span>
             </div>
-            
-            <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
-                <button class="btn btn-primary" onclick="saveConfig()" id="btn-save-config">
-                    💾 Save Configuration
-                </button>
+            <div class="card-body stack">
+              <div class="field">
+                <label>API Key</label>
+                <div class="input-row">
+                  <input type="password" id="gemini-key" placeholder="AIza...">
+                  <button class="btn btn-default btn-sm" onclick="toggle('gemini-key')">Show</button>
+                </div>
+              </div>
+              <div class="field">
+                <label>Model</label>
+                <input type="text" id="gemini-model" placeholder="gemini-2.5-flash-lite">
+              </div>
             </div>
-        </section>
+          </div>
+        </div>
 
-        <!-- Commands -->
-        <section id="commands" class="page">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-                <h1><span class="text-gradient">Available Commands</span></h1>
-                <div class="badge badge-search" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
-                    💡 Prefix any command with 'w' for Web Search (e.g., :wai)
-                </div>
+        <div class="stack">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Groq Fallbacks</span>
+              <button class="btn btn-default btn-sm" id="btn-add-groq">+ Add Key</button>
             </div>
-            
-            <div id="commands-container">
-                <!-- Populated dynamically -->
+            <div class="card-body">
+              <div class="field" style="margin-bottom:14px;">
+                <label>Model</label>
+                <input type="text" id="groq-model" placeholder="llama-3.3-70b-versatile">
+              </div>
+              <div id="groq-keys-list">
+                <div style="color:var(--text-3);font-size:13px;">Loading...</div>
+              </div>
             </div>
-        </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- System Prompts -->
-        <section id="prompts" class="page">
-            <h1><span class="text-gradient">System Prompts</span></h1>
-            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Edit the behavior instructions for each mode.</p>
-            
-            <div class="prompts-layout">
-                <div class="card" style="padding: 1rem;">
-                    <h3 style="margin-bottom: 1rem; padding-left: 5px;">Modes</h3>
-                    <div id="prompts-list" class="prompts-list">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
-                
-                <div class="card prompt-editor">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h2 id="active-prompt-title" style="margin: 0;">Select a mode</h2>
-                        <button class="btn btn-primary btn-sm" onclick="savePrompt()" id="btn-save-prompt">💾 Save Prompt</button>
-                    </div>
-                    
-                    <textarea id="prompt-content" class="form-control prompt-textarea" placeholder="Select a mode from the left to edit its prompt..."></textarea>
-                    
-                    <div style="border-top: 1px solid var(--card-border); padding-top: 15px;">
-                        <h3>Test this prompt</h3>
-                        <div class="input-group">
-                            <textarea id="prompt-test-input" class="form-control" rows="2" placeholder="Input text for testing..."></textarea>
-                            <button class="btn btn-secondary" onclick="testCurrentPrompt()" id="btn-test-prompt">▶ Run</button>
-                        </div>
-                        <div id="prompt-test-result" class="result-area" style="display: none; margin-top: 10px;"></div>
-                    </div>
-                </div>
+  <!-- ─── TINC.YML ────────────────────────────── -->
+  <div id="page-tincyml" class="page">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">tinc.yml</div>
+        <div class="topbar-desc">All Espanso match triggers — edit with care</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-default" id="btn-reload-yml">Reload</button>
+        <button class="btn btn-primary" id="btn-save-yml">Save & Restart Espanso</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="note" style="margin-bottom:14px;">
+        Changes are saved directly to <code style="font-family:var(--mono)">~/.config/espanso/match/tinc.yml</code> and Espanso is restarted automatically.
+      </div>
+      <div class="code-editor">
+        <div class="code-editor-bar">
+          <span>espanso/match/tinc.yml</span>
+          <span id="yml-char-count" style="font-size:11px;"></span>
+        </div>
+        <textarea id="tinc-yml-editor" spellcheck="false"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ESPANSO CONFIG ──────────────────────── -->
+  <div id="page-espansocfg" class="page">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Espanso Config</div>
+        <div class="topbar-desc">default.yml — backend, keyboard, and clipboard settings</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-default" id="btn-reload-cfg">Reload</button>
+        <button class="btn btn-primary" id="btn-save-cfg">Save & Restart Espanso</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="note" style="margin-bottom:14px;">
+        Changes are saved to <code style="font-family:var(--mono)">~/.config/espanso/config/default.yml</code> and Espanso is restarted automatically.
+      </div>
+      <div class="code-editor">
+        <div class="code-editor-bar">
+          <span>espanso/config/default.yml</span>
+          <span id="cfg-char-count" style="font-size:11px;"></span>
+        </div>
+        <textarea id="espanso-cfg-editor" spellcheck="false"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ESPANSO ─────────────────────────────── -->
+  <div id="page-espanso" class="page">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Espanso Service</div>
+        <div class="topbar-desc">Monitor and control the text expansion daemon</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-default" id="btn-check-espanso">Refresh</button>
+        <button class="btn btn-primary" id="btn-restart-espanso">Restart</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card" style="max-width:500px;">
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+            <div class="dot" id="espanso-dot" style="width:10px;height:10px;"></div>
+            <div>
+              <div style="font-weight:600;font-size:15px;" id="espanso-status-text">Checking…</div>
+              <div style="font-size:12px;color:var(--text-2);margin-top:2px;">Espanso process status</div>
             </div>
-        </section>
+          </div>
+          <div id="espanso-output" style="display:none;" class="mono" style="font-size:12px;color:var(--text-2);background:var(--bg);padding:10px 12px;border-radius:6px;"></div>
+        </div>
+      </div>
 
-        <!-- Espanso -->
-        <section id="espanso" class="page">
-            <h1><span class="text-gradient">Espanso Integration</span></h1>
-            <p style="color: var(--text-secondary); margin-bottom: 2rem;">Tinc uses Espanso to detect shortcuts and inject text anywhere.</p>
-            
-            <div class="card espanso-status-large">
-                <div id="espanso-pulse" class="pulse-ring">
-                    <!-- Icon -->
-                    <span id="espanso-icon">⏱</span>
-                </div>
-                
-                <div>
-                    <h2 id="espanso-status-text" style="margin-bottom: 0.5rem;">Checking Status...</h2>
-                    <p style="color: var(--text-secondary);">The daemon that listens for :shortcuts</p>
-                </div>
-                
-                <button class="btn btn-primary" onclick="restartEspanso()" id="btn-restart-espanso">
-                    🔄 Restart Espanso
-                </button>
-                
-                <div id="espanso-log" class="result-area" style="display: none; width: 100%; max-width: 600px; text-align: left;"></div>
-            </div>
-        </section>
+      <div style="margin-top:16px;max-width:500px;">
+        <div class="note info">
+          Tinc uses Espanso to detect <code style="font-family:var(--mono)">[prompt]suffix</code> triggers system-wide and call the AI router script. Restarting Espanso reloads all match files.
+        </div>
+      </div>
+    </div>
+  </div>
 
-        <!-- Logs -->
-        <section id="logs" class="page">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h1><span class="text-gradient">System Logs</span></h1>
-                
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <label class="toggle-group">
-                        <div class="switch">
-                            <input type="checkbox" id="auto-refresh-logs" onchange="toggleAutoRefresh()">
-                            <span class="slider"></span>
-                        </div>
-                        <span class="form-label" style="margin:0;">Auto-refresh</span>
-                    </label>
-                    <button class="btn btn-secondary btn-sm" onclick="fetchLogs()">🔄 Refresh</button>
-                </div>
-            </div>
-            
-            <div class="logs-layout">
-                <div class="log-panel">
-                    <div class="log-header">
-                        <span>Standard Output (stdout)</span>
-                    </div>
-                    <div id="log-stdout" class="log-content">Loading...</div>
-                </div>
-                
-                <div class="log-panel">
-                    <div class="log-header">
-                        <span>Standard Error (stderr)</span>
-                    </div>
-                    <div id="log-stderr" class="log-content error">Loading...</div>
-                </div>
-            </div>
-        </section>
-    </main>
+  <!-- ─── LOGS ────────────────────────────────── -->
+  <div id="page-logs" class="page">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">Worker Logs</div>
+        <div class="topbar-desc">/tmp/tinc_worker.out and .err from the last AI invocation</div>
+      </div>
+      <div class="topbar-actions">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text-2);">
+          <input type="checkbox" id="auto-refresh" style="width:auto;"> Auto-refresh
+        </label>
+        <button class="btn btn-default" id="btn-refresh-logs">Refresh</button>
+      </div>
+    </div>
+    <div class="content stack">
+      <div class="log-pane">
+        <div class="log-pane-head"><span>stdout</span></div>
+        <div class="log-pane-body" id="log-out">Loading…</div>
+      </div>
+      <div class="log-pane">
+        <div class="log-pane-head"><span>stderr</span></div>
+        <div class="log-pane-body err" id="log-err">Loading…</div>
+      </div>
+    </div>
+  </div>
 
-    <div id="toast-container"></div>
+</div><!-- /.main -->
 
-    <script>
-        // --- State ---
-        let currentConfig = {};
-        let allSuffixes = {};
-        let allPrompts = {};
-        let activePromptMode = null;
-        let logInterval = null;
+<div class="toast-wrap" id="toasts"></div>
 
-        // --- Navigation ---
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', () => {
-                // Update active nav
-                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-                item.classList.add('active');
-                
-                // Show page
-                const target = item.getAttribute('data-target');
-                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-                document.getElementById(target).classList.add('active');
-                
-                // Page specific logic
-                if (target === 'logs') {
-                    fetchLogs();
-                    if(document.getElementById('auto-refresh-logs').checked) toggleAutoRefresh();
-                } else {
-                    clearInterval(logInterval);
-                }
-                
-                if (target === 'espanso') {
-                    checkEspansoStatus();
-                }
-            });
-        });
+<script>
+// ── State ──────────────────────────────────────────────────────
+let prompts = {};
+let activePromptMode = null;
+let logTimer = null;
 
-        // --- Init ---
-        window.addEventListener('DOMContentLoaded', async () => {
-            await Promise.all([
-                fetchConfig(),
-                fetchSuffixes(),
-                fetchPrompts()
-            ]);
-            checkEspansoStatus();
-            fetchLogs(true); // For dashboard
-        });
+// ── Utils ──────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
 
-        // --- Toast System ---
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            
-            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
-            toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
-            
-            container.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(100%)';
-                toast.style.transition = 'all 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
-        }
+async function api(path, method = 'GET', body = null) {
+  const opts = { method, headers: {} };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  try {
+    const r = await fetch(path, opts);
+    return await r.json();
+  } catch (e) { return { error: e.message }; }
+}
 
-        // --- Helpers ---
-        async function apiCall(endpoint, method = 'GET', body = null) {
-            try {
-                const options = { method, headers: {} };
-                if (body) {
-                    options.headers['Content-Type'] = 'application/json';
-                    options.body = JSON.stringify(body);
-                }
-                const res = await fetch(endpoint, options);
-                const data = await res.json();
-                return { success: res.ok, data };
-            } catch (err) {
-                console.error(err);
-                return { success: false, error: err.message };
-            }
-        }
+function toast(msg, type = '') {
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
 
-        function setButtonLoading(btnId, isLoading, text = '') {
-            const btn = document.getElementById(btnId);
-            if (!btn) return;
-            if (isLoading) {
-                btn.dataset.originalText = btn.innerHTML;
-                btn.innerHTML = `<span class="loading-spinner"></span> Loading...`;
-                btn.disabled = true;
-            } else {
-                btn.innerHTML = btn.dataset.originalText || text;
-                btn.disabled = false;
-            }
-        }
+function toggle(id) {
+  const el = $(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
 
-        function togglePassword(id) {
-            const el = document.getElementById(id);
-            if (el.type === 'password') el.type = 'text';
-            else el.type = 'password';
-        }
+function setLoading(btn, yes) {
+  btn.disabled = yes;
+  if (yes) { btn.dataset.t = btn.textContent; btn.textContent = 'Saving…'; }
+  else { btn.textContent = btn.dataset.t; }
+}
 
-        // --- Data Fetching & Population ---
-        async function fetchConfig() {
-            const res = await apiCall('/api/config');
-            if (res.success) {
-                currentConfig = res.data;
-                
-                // Populate Dashboard
-                document.getElementById('dash-provider').innerText = currentConfig.has_gemini_key ? 'Gemini' : (currentConfig.has_groq_keys ? 'Groq' : 'None Configured');
-                document.getElementById('dash-groq-count').innerText = currentConfig.groq_key_count || 0;
-                
-                // Populate Keys Section
-                document.getElementById('gemini-key').value = currentConfig.gemini_api_key || '';
-                document.getElementById('gemini-model').value = currentConfig.gemini_model || 'gemini-2.5-flash-lite';
-                
-                document.getElementById('groq-model').value = currentConfig.groq_model || 'llama-3.3-70b-versatile';
-                
-                const groqContainer = document.getElementById('groq-keys-container');
-                groqContainer.innerHTML = '';
-                if (currentConfig.groq_api_keys && currentConfig.groq_api_keys.length > 0) {
-                    currentConfig.groq_api_keys.forEach(key => addGroqKeyField(key));
-                } else {
-                    addGroqKeyField(); // at least one empty
-                }
-            }
-        }
+// ── Navigation ─────────────────────────────────────────────────
+$$('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    $$('.nav-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const page = btn.dataset.page;
+    $$('.page').forEach(p => p.classList.remove('active'));
+    $('page-' + page).classList.add('active');
+    onPageEnter(page);
+  });
+});
 
-        async function fetchSuffixes() {
-            const res = await apiCall('/api/suffixes');
-            if (res.success) {
-                allSuffixes = res.data.suffixes || {};
-                
-                document.getElementById('dash-cmd-count').innerText = Object.keys(allSuffixes).length;
-                
-                // Populate Quick Test dropdown
-                const select = document.getElementById('quick-mode');
-                select.innerHTML = '';
-                const modes = new Set(Object.values(allSuffixes).map(s => s.mode));
-                Array.from(modes).sort().forEach(mode => {
-                    const opt = document.createElement('option');
-                    opt.value = mode;
-                    opt.textContent = mode;
-                    select.appendChild(opt);
-                });
+function onPageEnter(page) {
+  if (page === 'shortcuts') loadShortcuts();
+  if (page === 'prompts') loadPrompts();
+  if (page === 'apikeys') loadConfig();
+  if (page === 'tincyml') loadTincYml();
+  if (page === 'espansocfg') loadEspansoCfg();
+  if (page === 'espanso') checkEspanso();
+  if (page === 'logs') fetchLogs();
 
-                renderCommands();
-            }
-        }
+  // Stop auto-refresh when leaving logs
+  if (page !== 'logs') {
+    clearInterval(logTimer);
+    $('auto-refresh').checked = false;
+  }
+}
 
-        async function fetchPrompts() {
-            const res = await apiCall('/api/prompts');
-            if (res.success) {
-                allPrompts = res.data.prompts || {};
-                renderPromptsList();
-            }
-        }
+// ── Espanso status (sidebar) ───────────────────────────────────
+async function updateSidebarStatus() {
+  const r = await api('/api/espanso/status');
+  const dot = $('sidebar-dot');
+  const txt = $('sidebar-status');
+  if (r.running) {
+    dot.className = 'dot on';
+    txt.textContent = 'Running';
+  } else {
+    dot.className = 'dot off';
+    txt.textContent = 'Stopped';
+  }
+}
+updateSidebarStatus();
 
-        // --- Actions ---
+// ── Shortcuts ──────────────────────────────────────────────────
+async function loadShortcuts() {
+  const r = await api('/api/shortcuts');
+  const list = r.shortcuts || [];
+  $('shortcuts-count').textContent = list.length + ' shortcuts';
+  const tbody = $('shortcuts-tbody');
+  if (list.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="3"><div class="empty"><div class="empty-text">No simple shortcuts yet. Add one above.</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(s => `
+    <tr>
+      <td><span class="mono">${esc(s.trigger)}</span></td>
+      <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.replace)}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="deleteShortcut('${esc(s.trigger)}')" title="Delete" style="color:var(--text-3);">✕</button>
+      </td>
+    </tr>
+  `).join('');
+}
 
-        // Config
-        function addGroqKeyField(val = '') {
-            const container = document.getElementById('groq-keys-container');
-            const idx = container.children.length;
-            const div = document.createElement('div');
-            div.className = 'key-item';
-            div.innerHTML = `
-                <div class="input-group" style="flex:1;">
-                    <input type="password" class="form-control groq-key-input" value="${val}" placeholder="gsk_...">
-                    <button class="btn btn-secondary" onclick="togglePassword(this.previousElementSibling.id)">👁</button>
-                </div>
-                <button class="btn btn-secondary btn-sm" onclick="testKey('groq', this.parentElement.querySelector('input').id, 'groq-model')">Test</button>
-                <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
-            `;
-            // unique id for toggle
-            const input = div.querySelector('input');
-            input.id = 'groq-key-' + Math.random().toString(36).substr(2, 9);
-            container.appendChild(div);
-        }
+$('btn-add-shortcut').onclick = () => {
+  $('add-shortcut-form').style.display = '';
+  $('new-trigger').focus();
+};
+$('btn-cancel-add').onclick = () => {
+  $('add-shortcut-form').style.display = 'none';
+  $('new-trigger').value = '';
+  $('new-replace').value = '';
+};
 
-        async function saveConfig() {
-            setButtonLoading('btn-save-config', true);
-            
-            const geminiKey = document.getElementById('gemini-key').value;
-            const geminiModel = document.getElementById('gemini-model').value;
-            const groqModel = document.getElementById('groq-model').value;
-            
-            const groqKeys = Array.from(document.querySelectorAll('.groq-key-input'))
-                                .map(el => el.value)
-                                .filter(val => val.trim() !== '' && val !== '••masked'); // don't send masked back literally unless handled by backend, assuming backend handles masked strings or we only send new. Usually, if it's masked, we don't send it if unchanged. Let's send it, assuming backend ignores '••masked'.
+$('btn-save-shortcut').onclick = async () => {
+  const trigger = $('new-trigger').value.trim();
+  const replace = $('new-replace').value.trim();
+  if (!trigger || !replace) { toast('Fill both fields', 'err'); return; }
+  const r = await api('/api/shortcuts/add', 'POST', { trigger, replace });
+  if (r.ok) {
+    toast('Shortcut added', 'ok');
+    $('add-shortcut-form').style.display = 'none';
+    $('new-trigger').value = '';
+    $('new-replace').value = '';
+    loadShortcuts();
+  } else {
+    toast('Failed to add shortcut', 'err');
+  }
+};
 
-            const payload = {
-                gemini_api_key: geminiKey,
-                gemini_model: geminiModel,
-                groq_model: groqModel,
-                groq_api_keys: groqKeys
-            };
+async function deleteShortcut(trigger) {
+  if (!confirm(`Delete shortcut "${trigger}"?`)) return;
+  const r = await api('/api/shortcuts/delete', 'POST', { trigger });
+  if (r.ok) { toast('Deleted', 'ok'); loadShortcuts(); }
+  else toast('Delete failed', 'err');
+}
 
-            const res = await apiCall('/api/config', 'POST', payload);
-            setButtonLoading('btn-save-config', false);
-            
-            if (res.success) {
-                showToast('Configuration saved successfully', 'success');
-                fetchConfig(); // reload
-            } else {
-                showToast('Failed to save config: ' + res.error, 'error');
-            }
-        }
+// ── Prompts ────────────────────────────────────────────────────
+async function loadPrompts() {
+  const r = await api('/api/prompts');
+  prompts = r.prompts || {};
+  const list = $('prompt-list');
+  const modes = Object.keys(prompts).sort();
+  if (modes.length === 0) {
+    list.innerHTML = '<div style="padding:12px;color:var(--text-3);font-size:12px;">None found</div>';
+    return;
+  }
+  list.innerHTML = modes.map(m =>
+    `<div class="prompt-list-item${m === activePromptMode ? ' active' : ''}" data-mode="${m}">${m}</div>`
+  ).join('');
+  list.querySelectorAll('.prompt-list-item').forEach(el => {
+    el.onclick = () => selectPrompt(el.dataset.mode);
+  });
+  if (activePromptMode && prompts[activePromptMode]) renderPromptEditor(activePromptMode);
+}
 
-        async function testKey(provider, inputId, modelId) {
-            const key = document.getElementById(inputId).value;
-            const model = document.getElementById(modelId).value;
-            
-            if (!key || key.includes('masked')) {
-                showToast('Please enter an actual API key to test.', 'warning');
-                return;
-            }
+function selectPrompt(mode) {
+  activePromptMode = mode;
+  $$('.prompt-list-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.mode === mode);
+  });
+  renderPromptEditor(mode);
+}
 
-            let btnId = inputId === 'gemini-key' ? 'btn-test-gemini' : null;
-            let resultEl = inputId === 'gemini-key' ? document.getElementById('res-test-gemini') : null;
+function renderPromptEditor(mode) {
+  const pane = $('prompt-editor-pane');
+  pane.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title" style="font-family:var(--mono)">${mode}</span>
+        <button class="btn btn-primary btn-sm" id="btn-save-prompt">Save</button>
+      </div>
+      <div class="card-body">
+        <label style="margin-bottom:6px;">System Prompt</label>
+        <textarea id="prompt-textarea" style="min-height:200px;font-family:var(--font);font-size:13px;">${esc(prompts[mode])}</textarea>
+      </div>
+    </div>
+  `;
+  $('btn-save-prompt').onclick = async () => {
+    const btn = $('btn-save-prompt');
+    setLoading(btn, true);
+    const r = await api('/api/prompts', 'POST', { mode, prompt: $('prompt-textarea').value });
+    setLoading(btn, false);
+    if (r.ok) { toast('Prompt saved', 'ok'); prompts[mode] = $('prompt-textarea').value; }
+    else toast('Save failed — could not patch ai_router.py', 'err');
+  };
+}
 
-            if (btnId) setButtonLoading(btnId, true);
-            
-            const res = await apiCall('/api/test-key', 'POST', { provider, key, model });
-            
-            if (btnId) setButtonLoading(btnId, false);
+// ── API Keys ───────────────────────────────────────────────────
+async function loadConfig() {
+  const r = await api('/api/config');
+  $('gemini-key').value = r.gemini_api_key || '';
+  $('gemini-model').value = r.gemini_model || 'gemini-2.5-flash-lite';
+  $('groq-model').value = r.groq_model || 'llama-3.3-70b-versatile';
+  renderGroqKeys(r.groq_api_keys || []);
+}
 
-            if (res.success && res.data.success) {
-                showToast(`${provider} key is valid!`, 'success');
-                if (resultEl) {
-                    resultEl.style.color = 'var(--success)';
-                    resultEl.innerText = 'Success: ' + (res.data.response ? res.data.response.substring(0, 50) + '...' : '');
-                }
-            } else {
-                showToast(`${provider} key test failed.`, 'error');
-                if (resultEl) {
-                    resultEl.style.color = 'var(--error)';
-                    resultEl.innerText = 'Error: ' + (res.data.error || 'Unknown error');
-                }
-            }
-        }
+function renderGroqKeys(keys) {
+  const container = $('groq-keys-list');
+  if (keys.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:4px 0;">No Groq keys configured.</div>';
+    return;
+  }
+  container.innerHTML = keys.map((k, i) => `
+    <div class="key-row">
+      <input type="password" class="groq-key" value="${esc(k)}" placeholder="gsk_...">
+      <button class="btn btn-ghost btn-sm" onclick="toggle(this.previousElementSibling)" title="Show">👁</button>
+      <button class="btn btn-ghost btn-sm" onclick="this.closest('.key-row').remove()" title="Remove" style="color:var(--danger);">✕</button>
+    </div>
+  `).join('');
+}
 
-        // Commands
-        function renderCommands() {
-            const container = document.getElementById('commands-container');
-            container.innerHTML = '';
+// toggle by element reference
+window.toggle = function(arg) {
+  if (typeof arg === 'string') { const el = $(arg); if (el) el.type = el.type === 'password' ? 'text' : 'password'; }
+  else if (arg && arg.type !== undefined) { arg.type = arg.type === 'password' ? 'text' : 'password'; }
+};
 
-            // Group by category based on naming/mode (approximation based on rules)
-            const categories = {
-                'AI Core': ['ai', 'av', 'ad'],
-                'Writing': ['fix', 'tldr'],
-                'Code': ['ref', 'py', 'cp', 'sh', 'htm', 'csv', 'json'],
-                'Translation': ['hi', 'hd', 'hu'],
-                'Clipboard Variants': ['fiv', 'tldv', 'rev', 'pv', 'cv', 'sv', 'htv', 'jsov', 'csj'],
-                'Terminal/Ptyxis': ['aip', 'adp', 'fixp', 'tldrp', 'refp', 'pyp', 'cpp', 'shp', 'cmdp', 'cmd']
-            };
+$('btn-add-groq').onclick = () => {
+  const container = $('groq-keys-list');
+  // Clear placeholder text if present
+  if (container.querySelector('div:not(.key-row)')) container.innerHTML = '';
+  const row = document.createElement('div');
+  row.className = 'key-row';
+  row.innerHTML = `
+    <input type="password" class="groq-key" placeholder="gsk_...">
+    <button class="btn btn-ghost btn-sm" onclick="toggle(this.previousElementSibling)" title="Show">👁</button>
+    <button class="btn btn-ghost btn-sm" onclick="this.closest('.key-row').remove()" style="color:var(--danger);">✕</button>
+  `;
+  container.appendChild(row);
+  row.querySelector('input').focus();
+};
 
-            const categorized = {};
-            const unassigned = {};
+$('btn-save-config').onclick = async () => {
+  const btn = $('btn-save-config');
+  setLoading(btn, true);
+  const groqKeys = [...$$('.groq-key')].map(el => el.value).filter(v => v.trim());
+  const r = await api('/api/config', 'POST', {
+    gemini_api_key: $('gemini-key').value,
+    gemini_model:   $('gemini-model').value,
+    groq_model:     $('groq-model').value,
+    groq_api_keys:  groqKeys,
+  });
+  setLoading(btn, false);
+  if (r.ok) { toast('Saved', 'ok'); loadConfig(); }
+  else toast('Save failed', 'err');
+};
 
-            Object.entries(allSuffixes).forEach(([suffix, data]) => {
-                let assigned = false;
-                for (const [cat, sufs] of Object.entries(categories)) {
-                    if (sufs.includes(suffix)) {
-                        if (!categorized[cat]) categorized[cat] = [];
-                        categorized[cat].push({suffix, ...data});
-                        assigned = true;
-                        break;
-                    }
-                }
-                if (!assigned) {
-                    unassigned[suffix] = data;
-                }
-            });
+// ── tinc.yml editor ────────────────────────────────────────────
+async function loadTincYml() {
+  const r = await api('/api/tinc-yml');
+  const ta = $('tinc-yml-editor');
+  ta.value = r.content || '';
+  $('yml-char-count').textContent = ta.value.length + ' chars';
+  ta.oninput = () => $('yml-char-count').textContent = ta.value.length + ' chars';
+}
 
-            const allCats = {...categorized};
-            if (Object.keys(unassigned).length > 0) allCats['Other'] = Object.entries(unassigned).map(([s,d])=>({suffix:s, ...d}));
+$('btn-reload-yml').onclick = loadTincYml;
 
-            for (const [catName, items] of Object.entries(allCats)) {
-                if (items.length === 0) continue;
-                
-                const catDiv = document.createElement('div');
-                catDiv.className = 'category-section';
-                catDiv.innerHTML = `<h2 style="margin-bottom:1rem; border-bottom:1px solid var(--card-border); padding-bottom:0.5rem;">${catName}</h2>`;
-                
-                const grid = document.createElement('div');
-                grid.className = 'grid grid-4';
-                
-                items.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'card command-card';
-                    card.innerHTML = `
-                        <div class="command-title">:${item.suffix}</div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 5px;">
-                            Mode: <span style="color:var(--text-primary)">${item.mode}</span>
-                        </div>
-                        <div class="command-badges">
-                            ${item.web_search ? '<span class="badge badge-search">Web</span>' : ''}
-                            ${item.use_clipboard ? '<span class="badge badge-clip">Clipboard</span>' : ''}
-                            ${item.paste_mode ? `<span class="badge badge-mode">${item.paste_mode_label || item.paste_mode}</span>` : ''}
-                        </div>
-                    `;
-                    grid.appendChild(card);
-                });
-                
-                catDiv.appendChild(grid);
-                container.appendChild(catDiv);
-            }
-        }
+$('btn-save-yml').onclick = async () => {
+  const btn = $('btn-save-yml');
+  setLoading(btn, true);
+  const r = await api('/api/tinc-yml', 'POST', { content: $('tinc-yml-editor').value });
+  if (r.ok) {
+    const re = await api('/api/espanso/restart', 'POST');
+    toast(re.ok ? 'Saved & Espanso restarted' : 'Saved (Espanso restart failed)', re.ok ? 'ok' : '');
+    updateSidebarStatus();
+  } else toast('Save failed', 'err');
+  setLoading(btn, false);
+};
 
-        // Prompts
-        function renderPromptsList() {
-            const list = document.getElementById('prompts-list');
-            list.innerHTML = '';
-            
-            Object.keys(allPrompts).sort().forEach(mode => {
-                const item = document.createElement('div');
-                item.className = 'prompt-item';
-                item.innerText = mode;
-                item.onclick = () => selectPrompt(mode, item);
-                list.appendChild(item);
-            });
-        }
+// ── Espanso config editor ──────────────────────────────────────
+async function loadEspansoCfg() {
+  const r = await api('/api/espanso-cfg');
+  const ta = $('espanso-cfg-editor');
+  ta.value = r.content || '';
+  $('cfg-char-count').textContent = ta.value.length + ' chars';
+  ta.oninput = () => $('cfg-char-count').textContent = ta.value.length + ' chars';
+}
 
-        function selectPrompt(mode, el) {
-            document.querySelectorAll('.prompt-item').forEach(i => i.classList.remove('active'));
-            el.classList.add('active');
-            
-            activePromptMode = mode;
-            document.getElementById('active-prompt-title').innerText = `Mode: ${mode}`;
-            document.getElementById('prompt-content').value = allPrompts[mode];
-            document.getElementById('prompt-test-result').style.display = 'none';
-        }
+$('btn-reload-cfg').onclick = loadEspansoCfg;
 
-        async function savePrompt() {
-            if (!activePromptMode) return;
-            setButtonLoading('btn-save-prompt', true);
-            
-            const content = document.getElementById('prompt-content').value;
-            const res = await apiCall('/api/prompts', 'POST', { mode: activePromptMode, prompt: content });
-            
-            setButtonLoading('btn-save-prompt', false);
-            
-            if (res.success) {
-                showToast('Prompt saved', 'success');
-                allPrompts[activePromptMode] = content;
-            } else {
-                showToast('Failed to save prompt', 'error');
-            }
-        }
+$('btn-save-cfg').onclick = async () => {
+  const btn = $('btn-save-cfg');
+  setLoading(btn, true);
+  const r = await api('/api/espanso-cfg', 'POST', { content: $('espanso-cfg-editor').value });
+  if (r.ok) {
+    const re = await api('/api/espanso/restart', 'POST');
+    toast(re.ok ? 'Saved & Espanso restarted' : 'Saved (restart failed)', re.ok ? 'ok' : '');
+    updateSidebarStatus();
+  } else toast('Save failed', 'err');
+  setLoading(btn, false);
+};
 
-        async function testCurrentPrompt() {
-            if (!activePromptMode) return;
-            setButtonLoading('btn-test-prompt', true);
-            
-            const input = document.getElementById('prompt-test-input').value;
-            const resEl = document.getElementById('prompt-test-result');
-            resEl.style.display = 'block';
-            resEl.innerText = 'Running...';
-            
-            const res = await apiCall('/api/test', 'POST', {
-                prompt: input,
-                mode: activePromptMode,
-                web_search: false
-            });
-            
-            setButtonLoading('btn-test-prompt', false);
-            
-            if (res.success && !res.data.error) {
-                resEl.style.color = 'var(--text-primary)';
-                resEl.innerText = res.data.result;
-            } else {
-                resEl.style.color = 'var(--error)';
-                resEl.innerText = res.error || res.data.error;
-            }
-        }
+// ── Espanso page ───────────────────────────────────────────────
+async function checkEspanso() {
+  const r = await api('/api/espanso/status');
+  const dot = $('espanso-dot');
+  dot.className = 'dot ' + (r.running ? 'on' : 'off');
+  $('espanso-status-text').textContent = r.running ? 'Running' : 'Stopped';
+  const outEl = $('espanso-output');
+  if (r.out) { outEl.style.display = ''; outEl.textContent = r.out; }
+}
 
-        // Quick Test
-        async function runQuickTest() {
-            setButtonLoading('btn-quick-test', true);
-            
-            const input = document.getElementById('quick-prompt').value;
-            const mode = document.getElementById('quick-mode').value;
-            const web = document.getElementById('quick-web').checked;
-            
-            const resEl = document.getElementById('quick-result');
-            resEl.style.display = 'block';
-            resEl.innerText = 'Processing...';
-            
-            const res = await apiCall('/api/test', 'POST', {
-                prompt: input,
-                mode: mode,
-                web_search: web
-            });
-            
-            setButtonLoading('btn-quick-test', false);
-            
-            if (res.success && !res.data.error) {
-                resEl.style.color = 'var(--text-primary)';
-                resEl.innerText = res.data.result;
-            } else {
-                resEl.style.color = 'var(--error)';
-                resEl.innerText = res.error || res.data.error;
-            }
-        }
+$('btn-check-espanso').onclick = checkEspanso;
 
-        // Espanso
-        async function checkEspansoStatus() {
-            const res = await apiCall('/api/espanso/status');
-            const dashDot = document.getElementById('dash-espanso-dot');
-            const dashText = document.getElementById('dash-espanso-text');
-            const mainPulse = document.getElementById('espanso-pulse');
-            const mainText = document.getElementById('espanso-status-text');
-            const icon = document.getElementById('espanso-icon');
-            
-            if (res.success && res.data) {
-                const running = res.data.running;
-                if (running) {
-                    dashDot.className = 'status-dot active';
-                    dashText.innerText = 'Running';
-                    dashText.style.color = 'var(--success)';
-                    
-                    mainPulse.className = 'pulse-ring';
-                    mainText.innerText = 'Espanso is Running';
-                    mainText.style.color = 'var(--success)';
-                    icon.innerText = '✅';
-                } else {
-                    dashDot.className = 'status-dot inactive';
-                    dashText.innerText = 'Stopped';
-                    dashText.style.color = 'var(--error)';
-                    
-                    mainPulse.className = 'pulse-ring stopped';
-                    mainText.innerText = 'Espanso is Stopped';
-                    mainText.style.color = 'var(--error)';
-                    icon.innerText = '❌';
-                }
-            }
-        }
+$('btn-restart-espanso').onclick = async () => {
+  const btn = $('btn-restart-espanso');
+  setLoading(btn, true);
+  const r = await api('/api/espanso/restart', 'POST');
+  toast(r.ok ? 'Restarted' : 'Restart failed: ' + r.out, r.ok ? 'ok' : 'err');
+  setLoading(btn, false);
+  setTimeout(() => { checkEspanso(); updateSidebarStatus(); }, 1000);
+};
 
-        async function restartEspanso() {
-            setButtonLoading('btn-restart-espanso', true);
-            const resEl = document.getElementById('espanso-log');
-            resEl.style.display = 'block';
-            resEl.innerText = 'Restarting...';
-            
-            const res = await apiCall('/api/espanso/restart', 'POST');
-            
-            setButtonLoading('btn-restart-espanso', false);
-            checkEspansoStatus();
-            
-            if (res.success) {
-                showToast('Restart command sent', 'info');
-                resEl.innerText = res.data.output || 'Done.';
-            } else {
-                showToast('Failed to restart', 'error');
-                resEl.innerText = res.error || 'Error';
-            }
-        }
+// ── Logs ───────────────────────────────────────────────────────
+async function fetchLogs() {
+  const r = await api('/api/logs');
+  $('log-out').textContent = r.stdout || '(empty)';
+  $('log-err').textContent = r.stderr || '(empty)';
+}
 
-        // Logs
-        async function fetchLogs(forDashboard = false) {
-            const res = await apiCall('/api/logs');
-            if (res.success && res.data) {
-                if (forDashboard) {
-                    const dashLogs = document.getElementById('dash-logs');
-                    dashLogs.innerText = (res.data.stdout || '').split('\n').slice(-15).join('\n') || 'No recent logs.';
-                } else {
-                    const outEl = document.getElementById('log-stdout');
-                    const errEl = document.getElementById('log-stderr');
-                    
-                    const isOutScrolled = outEl.scrollHeight - outEl.clientHeight <= outEl.scrollTop + 1;
-                    const isErrScrolled = errEl.scrollHeight - errEl.clientHeight <= errEl.scrollTop + 1;
-                    
-                    outEl.innerText = res.data.stdout || 'No stdout logs.';
-                    errEl.innerText = res.data.stderr || 'No stderr logs.';
-                    
-                    if (isOutScrolled) outEl.scrollTop = outEl.scrollHeight;
-                    if (isErrScrolled) errEl.scrollTop = errEl.scrollHeight;
-                }
-            }
-        }
+$('btn-refresh-logs').onclick = fetchLogs;
 
-        function toggleAutoRefresh() {
-            const isChecked = document.getElementById('auto-refresh-logs').checked;
-            if (isChecked) {
-                logInterval = setInterval(() => fetchLogs(false), 3000);
-                showToast('Auto-refresh enabled', 'success');
-            } else {
-                clearInterval(logInterval);
-                showToast('Auto-refresh disabled', 'info');
-            }
-        }
+$('auto-refresh').onchange = function() {
+  clearInterval(logTimer);
+  if (this.checked) logTimer = setInterval(fetchLogs, 3000);
+};
 
-    </script>
+// ── Escape HTML ────────────────────────────────────────────────
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Boot ───────────────────────────────────────────────────────
+loadShortcuts();
+</script>
 </body>
 </html>
