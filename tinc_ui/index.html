@@ -749,24 +749,7 @@ $('btn-add-ai').onclick = async () => {
   }
 };
 
-// Prompts
-`).classList.add('active');
-  
-  $('prompt-editor-pane').innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <div style="font-weight:600; font-family:var(--mono); font-size:16px;">${mode}</div>
-      <button class="btn btn-primary btn-sm" id="btn-save-prompt">Save Changes</button>
-    </div>
-    <textarea id="prompt-ta" style="flex:1; min-height:300px;">${prompts[mode]}</textarea>
-  `;
-  
-  $('btn-save-prompt').onclick = async () => {
-    const txt = $('prompt-ta').value;
-    const r = await api('/api/prompts', 'POST', {mode, prompt: txt});
-    if (r.ok) { toast('Saved', 'ok'); prompts[mode] = txt; }
-    else toast('Failed', 'err');
-  };
-}
+
 
 // Configs & Backups
 async function loadTincYml() {
