@@ -456,6 +456,18 @@ tr:hover td { background: var(--bg); }
         </div>
       </div>
     </div>
+
+    <div class="card" style="margin-top:24px;">
+      <div class="card-header">
+        <span class="card-title">Configured AI Shortcuts</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Suffix</th><th>Web Search</th><th>Clipboard</th></tr></thead>
+          <tbody id="ai-shortcuts-tbody"><tr><td colspan="3" style="text-align:center; color:var(--text-3);">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <!-- PROMPTS -->
@@ -619,6 +631,7 @@ const toggleP = (id) => {
 // Init
 async function init() {
   loadShortcuts();
+  loadAiShortcuts();
   loadPrompts();
   loadTincYml();
   loadEspansoCfg();
@@ -631,6 +644,20 @@ async function init() {
 function toggleAddShortcut() {
   const form = $('add-shortcut-form');
   form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function loadAiShortcuts() {
+  const r = await api('/api/ai-shortcuts');
+  const list = r.ai_shortcuts || [];
+  const tbody = $('ai-shortcuts-tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-3);">No AI shortcuts added.</td></tr>'; return; }
+  tbody.innerHTML = list.map(s => `
+    <tr>
+      <td><code style="font-family:var(--mono);background:var(--bg);padding:2px 6px;border-radius:4px;">${s.suffix}</code></td>
+      <td>${s.web ? '<span style="color:var(--success)">Yes</span>' : 'No'}</td>
+      <td>${s.clipboard ? 'Yes' : 'No'}</td>
+    </tr>
+  `).join('');
 }
 
 async function loadShortcuts() {
@@ -681,6 +708,7 @@ $('btn-add-ai').onclick = async () => {
     $('ai-prompt').value = '';
     
     // Reload UI states
+    loadAiShortcuts();
     loadPrompts();
     loadTincYml();
     await api('/api/espanso/restart', 'POST');

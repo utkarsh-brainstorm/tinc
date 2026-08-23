@@ -314,6 +314,21 @@ class H(http.server.BaseHTTPRequestHandler):
         if p == "/api/shortcuts":
             return self._json({"shortcuts": extract_shortcuts_from_yml()})
 
+        if p == "/api/ai-shortcuts":
+            # Extract from SUFFIX_MAP
+            src = read_file(AI_ROUTER)
+            m = re.search(r"SUFFIX_MAP\s*=\s*\{(.+?)\n\}", src, re.DOTALL)
+            ai_list = []
+            if m:
+                for km in re.finditer(r'"(\w+)":\s*\("([^"]+)",\s*(True|False),\s*(True|False),\s*(\d+)\)', m.group(1)):
+                    ai_list.append({
+                        "suffix": km.group(1),
+                        "mode": km.group(2),
+                        "web": km.group(3) == "True",
+                        "clipboard": km.group(4) == "True",
+                    })
+            return self._json({"ai_shortcuts": ai_list})
+
         if p == "/api/tinc-yml":
             return self._json({"content": read_file(TINC_YML)})
 
