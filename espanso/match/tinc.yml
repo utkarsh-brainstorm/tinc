@@ -47,6 +47,9 @@
 # ============================================================
 
 matches:
+
+  - trigger: "THSVH"
+    replace: "THE SANSKAR VALLEY HIGHER SECONDARY SCHOOL KANNOD"
   # ─────────────────────────────────────────────────────────
   # MISC
   # ─────────────────────────────────────────────────────────
@@ -138,14 +141,6 @@ matches:
   #  WRITING
   # ═══════════════════════════════════════════════════════════
 
-  - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?fix)$"
-    replace: "{{out}}"
-    vars:
-      - name: out
-        type: shell
-        params:
-          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
-
   - regex: "\\[(?P<prompt>[^\\]]+)\\](?P<suffix>w?tldr)$"
     replace: "{{out}}"
     vars:
@@ -214,9 +209,37 @@ matches:
         params:
           cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
-  # ═══════════════════════════════════════════════════════════
-  #  CLIPBOARD VARIANTS — replace last char of suffix with 'v'
-  # ═══════════════════════════════════════════════════════════
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?tst)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?fuck)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?fucv)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?fix)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
 
   - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?fiv)$"
     replace: "{{out}}"
@@ -225,6 +248,42 @@ matches:
         type: shell
         params:
           cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?sujal)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?sujac)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?sqlite)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?csql)$"
+    replace: "{{out}}"
+    vars:
+      - name: out
+        type: shell
+        params:
+          cmd: "ESPANSO_MODE={{suffix}} ESPANSO_TEXT='{{prompt}}' python3 ~/.config/espanso/scripts/ai_router.py"
+
+  # ═══════════════════════════════════════════════════════════
+  #  CLIPBOARD VARIANTS — replace last char of suffix with 'v'
+  # ═══════════════════════════════════════════════════════════
 
   - regex: "\\[(?P<prompt>[^\\]]*)\\](?P<suffix>w?tldv)$"
     replace: "{{out}}"

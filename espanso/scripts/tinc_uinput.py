@@ -49,7 +49,7 @@ def _send(key_sequence: list, delay: float = 0.03) -> bool:
         setup = struct.pack("HHHH80sI", 6, 0, 0, 1, b"tinc", 0)
         fcntl.ioctl(fd, UI_DEV_SETUP, setup)
         fcntl.ioctl(fd, UI_DEV_CREATE)
-        time.sleep(0.15)
+        time.sleep(0.12)
 
         for kc, val in key_sequence:
             _write_ev(fd, EV_KEY, kc, val)
@@ -86,7 +86,7 @@ def backspace(n: int) -> bool:
     for _ in range(n):
         seq.append((KEY_BACKSPACE, 1))
         seq.append((KEY_BACKSPACE, 0))
-    return _send(seq, delay=0.01)
+    return _send(seq, delay=0.003)
 
 def ctrl_shift_v() -> bool:
     return _send([
@@ -97,6 +97,77 @@ def ctrl_shift_v() -> bool:
         (KEY_LEFTSHIFT, 0),
         (KEY_LEFTCTRL,  0),
     ])
+
+def erase_and_paste(backspace_count: int, paste_mode: int = 0) -> bool:
+    """Atomically erase backspace_count characters and trigger paste in a single device session."""
+    try:
+        fd = os.open(UINPUT_PATH, os.O_WRONLY | os.O_NONBLOCK)
+    except (PermissionError, OSError):
+        return False
+
+    try:
+        fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+        fcntl.ioctl(fd, UI_SET_EVBIT, EV_SYN)
+        for kc in [KEY_BACKSPACE, KEY_LEFTCTRL, KEY_LEFTSHIFT, KEY_INSERT, KEY_V]:
+            fcntl.ioctl(fd, UI_SET_KEYBIT, kc)
+
+        setup = struct.pack("HHHH80sI", 6, 0, 0, 1, b"tinc", 0)
+        fcntl.ioctl(fd, UI_DEV_SETUP, setup)
+        fcntl.ioctl(fd, UI_DEV_CREATE)
+        time.sleep(0.12)
+
+        # 1. Backspaces with clean 2ms delay
+        for _ in range(backspace_count):
+            _write_ev(fd, EV_KEY, KEY_BACKSPACE, 1)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+            time.sleep(0.002)
+            _write_ev(fd, EV_KEY, KEY_BACKSPACE, 0)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+            time.sleep(0.002)
+
+        time.sleep(0.02)
+
+        # 2. Paste keystroke
+        if paste_mode == 1:
+            # Ctrl+Shift+V
+            _write_ev(fd, EV_KEY, KEY_LEFTCTRL, 1)
+            _write_ev(fd, EV_KEY, KEY_LEFTSHIFT, 1)
+            _write_ev(fd, EV_KEY, KEY_V, 1)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+            time.sleep(0.01)
+            _write_ev(fd, EV_KEY, KEY_V, 0)
+            _write_ev(fd, EV_KEY, KEY_LEFTSHIFT, 0)
+            _write_ev(fd, EV_KEY, KEY_LEFTCTRL, 0)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+        elif paste_mode == 2:
+            # Ctrl+V
+            _write_ev(fd, EV_KEY, KEY_LEFTCTRL, 1)
+            _write_ev(fd, EV_KEY, KEY_V, 1)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+            time.sleep(0.01)
+            _write_ev(fd, EV_KEY, KEY_V, 0)
+            _write_ev(fd, EV_KEY, KEY_LEFTCTRL, 0)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+        else:
+            # Shift+Insert (default, pastes Primary in terminals and Clipboard in GUI)
+            _write_ev(fd, EV_KEY, KEY_LEFTSHIFT, 1)
+            _write_ev(fd, EV_KEY, KEY_INSERT, 1)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+            time.sleep(0.01)
+            _write_ev(fd, EV_KEY, KEY_INSERT, 0)
+            _write_ev(fd, EV_KEY, KEY_LEFTSHIFT, 0)
+            _write_ev(fd, EV_SYN, SYN_REPORT, 0)
+
+        time.sleep(0.02)
+    except Exception:
+        return False
+    finally:
+        try:
+            fcntl.ioctl(fd, UI_DEV_DESTROY)
+        except Exception:
+            pass
+        os.close(fd)
+    return True
 
 # Mapping from ASCII to (keycode, shift_needed)
 _CHAR_MAP = {
@@ -139,4 +210,3 @@ def type_string(text: str) -> bool:
             if shift:
                 events.append((KEY_LEFTSHIFT, 0))
     return _send(events, delay=0.0001)
-

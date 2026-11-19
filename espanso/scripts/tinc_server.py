@@ -15,6 +15,7 @@ import urllib.parse
 import webbrowser
 import threading
 import glob
+import time
 from datetime import datetime
 
 SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +32,14 @@ ESPANSO_CFG       = os.path.expanduser("~/.config/espanso/config/default.yml")
 AI_ROUTER         = os.path.expanduser("~/.config/espanso/scripts/ai_router.py")
 ESPANSO_BIN       = os.path.expanduser("~/.local/bin/espanso")
 BACKUP_DIR        = os.path.expanduser("~/.config/tinc/backups")
+
+# Find repo root if running from repo or config
+REPO_DIR = None
+_test_repo = os.path.dirname(os.path.dirname(SCRIPT_DIR))
+if os.path.isfile(os.path.join(_test_repo, "tinc")):
+    REPO_DIR = _test_repo
+elif os.path.isdir(os.path.expanduser("~/tinc")):
+    REPO_DIR = os.path.expanduser("~/tinc")
 
 sys.path.insert(0, SCRIPT_DIR)
 
@@ -70,7 +79,6 @@ def get_backups(filename: str) -> list:
         return []
 
 def restore_backup(filename: str, backup_id: str) -> bool:
-    # Ensure backup_id doesn't contain path traversal
     if "/" in backup_id or "\\" in backup_id:
         return False
         
@@ -86,11 +94,12 @@ def restore_backup(filename: str, backup_id: str) -> bool:
     else: return False
     
     if target_path:
-        # Backup the current state before restoring
         backup_file(target_path)
         try:
-            with open(backup_path, "r", encoding="utf-8") as src, open(target_path, "w", encoding="utf-8") as dst:
-                dst.write(src.read())
+            with open(backup_path, "r", encoding="utf-8") as src:
+                content = src.read()
+            write_file(target_path, content)
+            sync_to_repo(filename, content)
             return True
         except Exception:
             return False
@@ -109,6 +118,22 @@ def write_file(path: str, content: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
+
+def sync_to_repo(filename: str, content: str) -> None:
+    if not REPO_DIR:
+        return
+    repo_target = None
+    if filename == "tinc.yml":
+        repo_target = os.path.join(REPO_DIR, "espanso", "match", "tinc.yml")
+    elif filename == "default.yml":
+        repo_target = os.path.join(REPO_DIR, "espanso", "config", "default.yml")
+    elif filename == "ai_router.py":
+        repo_target = os.path.join(REPO_DIR, "espanso", "scripts", "ai_router.py")
+    if repo_target and repo_target != os.path.abspath(filename):
+        try:
+            write_file(repo_target, content)
+        except Exception:
+            pass
 
 def read_config() -> dict:
     try:
@@ -161,23 +186,27 @@ def write_prompt_to_router(mode: str, new_prompt: str) -> bool:
         if new_src == src:
             return False
         write_file(AI_ROUTER, new_src)
-        repo_router = os.path.join(SCRIPT_DIR, "ai_router.py")
-        if os.path.exists(repo_router) and repo_router != AI_ROUTER:
-            write_file(repo_router, new_src)
+        sync_to_repo("ai_router.py", new_src)
         return True
     except Exception:
         return False
 
-def remove_ai_shortcut_internal(suffix: str, clip_suffix: str) -> bool:
+def remove_ai_shortcut_internal(suffix: str, clip_suffix: str = None) -> bool:
     try:
+        backup_file(AI_ROUTER)
+        backup_file(TINC_YML)
+        
         router_src = read_file(AI_ROUTER)
         yml_src = read_file(TINC_YML)
         
         # Remove from SUFFIX_MAP
-        router_src = re.sub(rf'\n\s*"{re.escape(suffix)}":\s*\("[^"]+",.*?(?:True|False),\s*0\),', "", router_src)
+        router_src = re.sub(rf'\n\s*"{re.escape(suffix)}":\s*\("[^"]+",.*?(?:True|False),\s*\d+\),', "", router_src)
         if clip_suffix:
-            router_src = re.sub(rf'\n\s*"{re.escape(clip_suffix)}":\s*\("[^"]+",.*?(?:True|False),\s*0\),', "", router_src)
+            router_src = re.sub(rf'\n\s*"{re.escape(clip_suffix)}":\s*\("[^"]+",.*?(?:True|False),\s*\d+\),', "", router_src)
             
+        # Also clean any remaining entries with mode == suffix
+        router_src = re.sub(rf'\n\s*"[a-zA-Z0-9_-]+":\s*\("{re.escape(suffix)}",.*?\),', "", router_src)
+
         # Remove from SYSTEM_PROMPTS
         router_src = re.sub(rf'\n\s*"{re.escape(suffix)}":\s*"[^"\\]*(?:\\.[^"\\]*)*",', "", router_src)
         
@@ -186,18 +215,20 @@ def remove_ai_shortcut_internal(suffix: str, clip_suffix: str) -> bool:
         if code_modes_match:
             inner_text = code_modes_match.group(1)
             new_inner = re.sub(rf'"{re.escape(suffix)}"', "", inner_text)
-            new_inner = re.sub(r',\s*,', ",", new_inner).strip(', ')
+            new_inner = re.sub(r',\s*,', ",", new_inner)
+            new_inner = re.sub(r',\s*\}', "}", new_inner).strip(', ')
             router_src = router_src[:code_modes_match.start(1)] + new_inner + router_src[code_modes_match.end(1):]
             
         write_file(AI_ROUTER, router_src)
+        sync_to_repo("ai_router.py", router_src)
         
-        # Remove from tinc.yml using simple string splitting
+        # Remove from tinc.yml using line-by-line block matching
         def remove_yml_block(text, suf):
             lines = text.split('\n')
             out = []
             skip = 0
             for line in lines:
-                if line.strip().startswith("- regex:") and f"(?P<suffix>w?{suf})$" in line:
+                if line.strip().startswith("- regex:") and (f"(?P<suffix>w?{suf})$" in line or f"(?P<suffix>{suf})$" in line):
                     skip = 8
                 if skip > 0:
                     skip -= 1
@@ -209,17 +240,17 @@ def remove_ai_shortcut_internal(suffix: str, clip_suffix: str) -> bool:
         if clip_suffix:
             yml_src = remove_yml_block(yml_src, clip_suffix)
             
-        # Clean up excessive newlines
         yml_src = re.sub(r'\n{3,}', '\n\n', yml_src)
             
         write_file(TINC_YML, yml_src)
+        sync_to_repo("tinc.yml", yml_src)
         return True
     except Exception as e:
         print("Remove error:", e)
         return False
 
 def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool, clip_suffix: str = None, old_suffix: str = None, old_clip_suffix: str = None) -> bool:
-    """Injects a new AI mode into ai_router.py and tinc.yml."""
+    """Injects or updates an AI mode in ai_router.py and tinc.yml."""
     try:
         backup_file(AI_ROUTER)
         backup_file(TINC_YML)
@@ -250,10 +281,11 @@ def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool, clip_suf
                 inner_text = code_modes_match.group(1).strip()
                 if inner_text and not inner_text.endswith(","):
                     inner_text += ","
-                new_inner_text = inner_text + f' "{suffix}"' if not inner_text.endswith(",") else inner_text + f'"{suffix}"'
+                new_inner_text = inner_text + f' "{suffix}"'
                 router_src = router_src[:code_modes_match.start(1)] + new_inner_text + router_src[code_modes_match.end(1):]
         
         write_file(AI_ROUTER, router_src)
+        sync_to_repo("ai_router.py", router_src)
         
         yml_src = read_file(TINC_YML)
         
@@ -279,6 +311,7 @@ def add_ai_shortcut(suffix: str, web: bool, prompt: str, is_code: bool, clip_suf
             yml_src = yml_src.rstrip() + "\n" + regex_entry
             
         write_file(TINC_YML, yml_src)
+        sync_to_repo("tinc.yml", yml_src)
         return True
     except Exception as e:
         print("Error adding ai shortcut:", e)
@@ -289,7 +322,7 @@ def extract_shortcuts_from_yml() -> list:
         src = read_file(TINC_YML)
         shortcuts = []
         for m in re.finditer(
-            r'-\s+trigger:\s+"([^"]+)"\s*\n\s+replace:\s+"([^"]+)"',
+            r'-\s+trigger:\s*["\']?([^"\'\n]+)["\']?\s*\n\s+replace:\s*["\']?([^"\'\n]+)["\']?',
             src
         ):
             shortcuts.append({"trigger": m.group(1), "replace": m.group(2)})
@@ -308,9 +341,7 @@ def add_shortcut_to_yml(trigger: str, replace: str) -> bool:
         else:
             src = src.rstrip() + "\n" + entry
         write_file(TINC_YML, src)
-        repo_yml = os.path.join(os.path.dirname(SCRIPT_DIR), "match", "tinc.yml")
-        if os.path.exists(repo_yml):
-            write_file(repo_yml, src)
+        sync_to_repo("tinc.yml", src)
         return True
     except Exception:
         return False
@@ -319,11 +350,12 @@ def delete_shortcut_from_yml(trigger: str) -> bool:
     try:
         backup_file(TINC_YML)
         src = read_file(TINC_YML)
-        pattern = rf'\n  - trigger: "{re.escape(trigger)}"\n    replace: "[^"]*"\n'
+        pattern = rf'\n\s*-\s*trigger:\s*["\']?{re.escape(trigger)}["\']?\s*\n\s*replace:\s*["\'][^"\']*["\']\n?'
         new_src = re.sub(pattern, "\n", src, count=1)
         if new_src == src:
             return False
         write_file(TINC_YML, new_src)
+        sync_to_repo("tinc.yml", new_src)
         return True
     except Exception:
         return False
@@ -339,6 +371,7 @@ class H(http.server.BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(body)
 
@@ -396,6 +429,9 @@ class H(http.server.BaseHTTPRequestHandler):
 
         if p == "/api/espanso-cfg":
             return self._json({"content": read_file(ESPANSO_CFG)})
+
+        if p == "/api/ai-router-src":
+            return self._json({"content": read_file(AI_ROUTER)})
             
         if p == "/api/backups":
             filename = query.get("file", [""])[0]
@@ -419,7 +455,7 @@ class H(http.server.BaseHTTPRequestHandler):
         # static fallback
         fp = os.path.join(UI_DIR, p.lstrip("/"))
         if os.path.isfile(fp):
-            ct = {"css": "text/css", "js": "application/javascript"}.get(fp.rsplit(".", 1)[-1], "text/plain")
+            ct = {"css": "text/css", "js": "application/javascript", "png": "image/png", "jpg": "image/jpeg"}.get(fp.rsplit(".", 1)[-1], "text/plain")
             return self._file(fp, ct)
         self._json({"error": "not found"}, 404)
 
@@ -429,24 +465,59 @@ class H(http.server.BaseHTTPRequestHandler):
 
         if p == "/api/config":
             cfg = read_config()
-            gk = d.get("gemini_api_key", "")
+            gk = d.get("gemini_api_key", "").strip()
             if gk and "•" not in gk:
                 cfg["gemini_api_key"] = gk
-            if "gemini_model" in d:
-                cfg["gemini_model"] = d["gemini_model"]
-            if "groq_model" in d:
-                cfg["groq_model"] = d["groq_model"]
+            if "gemini_model" in d and d["gemini_model"].strip():
+                cfg["gemini_model"] = d["gemini_model"].strip()
+            if "groq_model" in d and d["groq_model"].strip():
+                cfg["groq_model"] = d["groq_model"].strip()
             if "groq_api_keys" in d:
                 old = cfg.get("groq_api_keys", [])
                 new = []
                 for i, k in enumerate(d["groq_api_keys"]):
-                    if "•" in k and i < len(old):
+                    k_str = k.strip()
+                    if "•" in k_str and i < len(old):
                         new.append(old[i])
-                    elif "•" not in k and k.strip():
-                        new.append(k)
+                    elif "•" not in k_str and k_str:
+                        new.append(k_str)
                 cfg["groq_api_keys"] = new
             write_config(cfg)
             return self._json({"ok": True})
+
+        if p == "/api/config/test":
+            provider = d.get("provider", "gemini")
+            input_key = d.get("api_key", "").strip()
+            model = d.get("model", "").strip()
+            
+            cfg = read_config()
+            key_to_use = input_key
+            if not key_to_use or "•" in key_to_use:
+                if provider == "gemini":
+                    key_to_use = cfg.get("gemini_api_key", "")
+                else:
+                    keys = cfg.get("groq_api_keys", [])
+                    key_to_use = keys[0] if keys else ""
+            
+            if not key_to_use:
+                return self._json({"ok": False, "error": f"No {provider.title()} API key provided."})
+                
+            if not model:
+                model = cfg.get("gemini_model" if provider == "gemini" else "groq_model", "")
+                
+            t0 = time.time()
+            try:
+                import tinc_client
+                if provider == "gemini":
+                    test_cfg = {"gemini_api_key": key_to_use, "gemini_model": model}
+                    res = tinc_client._gemini_chat([{"role": "user", "content": "Ping test, respond only with OK"}], test_cfg, web_search=False)
+                else:
+                    res = tinc_client._groq_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model)
+                latency = int((time.time() - t0) * 1000)
+                return self._json({"ok": True, "latency_ms": latency, "response": (res or "").strip()[:50]})
+            except Exception as e:
+                latency = int((time.time() - t0) * 1000)
+                return self._json({"ok": False, "error": str(e), "latency_ms": latency})
 
         if p == "/api/prompts":
             mode = d.get("mode", "")
@@ -457,8 +528,8 @@ class H(http.server.BaseHTTPRequestHandler):
         if p == "/api/ai-shortcuts/add":
             suffix = d.get("suffix", "").strip()
             prompt = d.get("prompt", "").strip()
-            web = d.get("web", False)
-            is_code = d.get("is_code", False)
+            web = bool(d.get("web", False))
+            is_code = bool(d.get("is_code", False))
             clip_suffix = d.get("clip_suffix", "").strip() or None
             old_suffix = d.get("old_suffix", "").strip() or None
             old_clip_suffix = d.get("old_clip_suffix", "").strip() or None
@@ -467,25 +538,52 @@ class H(http.server.BaseHTTPRequestHandler):
             ok = add_ai_shortcut(suffix, web, prompt, is_code, clip_suffix, old_suffix, old_clip_suffix)
             return self._json({"ok": ok})
 
+        if p == "/api/ai-shortcuts/delete":
+            suffix = d.get("suffix", "").strip()
+            clip_suffix = d.get("clip_suffix", "").strip() or None
+            if not suffix:
+                return self._json({"ok": False, "error": "Suffix required"})
+            ok = remove_ai_shortcut_internal(suffix, clip_suffix)
+            return self._json({"ok": ok})
+
         if p == "/api/shortcuts/add":
-            ok = add_shortcut_to_yml(d.get("trigger", ""), d.get("replace", ""))
+            ok = add_shortcut_to_yml(d.get("trigger", "").strip(), d.get("replace", "").strip())
+            return self._json({"ok": ok})
+
+        if p == "/api/shortcuts/edit":
+            old_trigger = d.get("old_trigger", "").strip()
+            trigger = d.get("trigger", "").strip()
+            replace = d.get("replace", "").strip()
+            if not trigger or not replace:
+                return self._json({"ok": False, "error": "Trigger and replacement required"})
+            if old_trigger:
+                delete_shortcut_from_yml(old_trigger)
+            ok = add_shortcut_to_yml(trigger, replace)
             return self._json({"ok": ok})
 
         if p == "/api/shortcuts/delete":
-            ok = delete_shortcut_from_yml(d.get("trigger", ""))
+            ok = delete_shortcut_from_yml(d.get("trigger", "").strip())
             return self._json({"ok": ok})
 
         if p == "/api/tinc-yml":
             backup_file(TINC_YML)
-            write_file(TINC_YML, d.get("content", ""))
-            repo = os.path.join(os.path.dirname(SCRIPT_DIR), "match", "tinc.yml")
-            if os.path.exists(repo):
-                write_file(repo, d.get("content", ""))
+            content = d.get("content", "")
+            write_file(TINC_YML, content)
+            sync_to_repo("tinc.yml", content)
             return self._json({"ok": True})
 
         if p == "/api/espanso-cfg":
             backup_file(ESPANSO_CFG)
-            write_file(ESPANSO_CFG, d.get("content", ""))
+            content = d.get("content", "")
+            write_file(ESPANSO_CFG, content)
+            sync_to_repo("default.yml", content)
+            return self._json({"ok": True})
+
+        if p == "/api/ai-router-src":
+            backup_file(AI_ROUTER)
+            content = d.get("content", "")
+            write_file(AI_ROUTER, content)
+            sync_to_repo("ai_router.py", content)
             return self._json({"ok": True})
             
         if p == "/api/backups/restore":

@@ -9,32 +9,8 @@ It prints the loading text so Espanso injects it at the cursor, then
 spawns a background worker that:
   1. Calls the AI API (Gemini → Groq fallback chain)
   2. Erases the loading text via /dev/uinput BackSpace
-  3. Copies the result to Wayland clipboard (wl-copy)
-  4. Sends Ctrl+V via /dev/uinput (same as Espanso itself uses)
-
-WHY /dev/uinput FOR OUTPUT:
-
-  Wayland portal Ctrl+V = triggers "Allow remote interaction" popup every restart
-  /dev/uinput Ctrl+V   = kernel-level, reaches ALL apps, zero popup, same as Espanso
-
-SUFFIX TABLE:
-  Suffix   Mode   Web    Description
-  ──────────────────────────────────────────────────────────
-  ai       ai     YES    Direct AI answer (no system prompt)
-  av       ai     YES    Same + clipboard as context
-  ad       ad     YES    Short precise answer (1-2 sentences)
-  fix      fix    NO     Fix spelling/grammar, preserve style
-  tldr     tldr   NO     1-2 sentence summary
-  ref      ref    NO     Refactor + comment code
-  py       py     NO     Python code only
-  cp       cp     NO     C++ code only
-  sh       sh     NO     Bash script only
-  htm      htm    NO     HTML only
-  csv      csv    NO     CSV only
-  json     json   NO     JSON only
-
-  Clipboard variants (replace last char with v):
-  fiv  tldv  rev  pv  cv  sv  htv  jsov  csj
+  3. Copies the result to Wayland clipboard (wl-copy) & primary selection
+  4. Triggers paste via /dev/uinput
 """
 import os
 import sys
@@ -46,17 +22,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tinc_client
 import tinc_uinput
 
-LOADING_TEXT = "Bas ittu sa time aur..."
-LOADING_LEN  = len(LOADING_TEXT)  # 23
+
+LOADING_TEXT = "[thinking...]"
+LOADING_LEN  = len(LOADING_TEXT)  # exactly 13 ASCII chars
 
 # ─── Suffix → (mode, web_search, use_clipboard, paste_mode) ───────────────
-# paste_mode: 0 = Shift+Insert, 1 = Ctrl+Shift+V (Ptyxis), 2 = type_string (cmd)
+# paste_mode: 0 = Shift+Insert, 1 = Ctrl+Shift+V (Ptyxis), 2 = Ctrl+V
 SUFFIX_MAP = {
-    # Default (Shift+Insert)
+    # Default (Shift+Insert / Primary & Clipboard)
     "ai":   ("ai",   False, False, 0),
     "av":   ("ai",   False, True,  0),
     "ad":   ("ad",   False, False, 0),
-    "fix":  ("fix",  False, False, 0),
     "tldr": ("tldr", False, False, 0),
     "ref":  ("ref",  False, False, 0),
     "py":   ("py",   False, False, 0),
@@ -72,7 +48,6 @@ SUFFIX_MAP = {
     "hu":   ("hu",   False, False, 0),
 
     # Clipboard variants
-    "fiv":  ("fix",  False, True,  0),
     "tldv": ("tldr", False, True,  0),
     "rev":  ("ref",  False, True,  0),
     "pv":   ("py",   False, True,  0),
@@ -95,13 +70,21 @@ SUFFIX_MAP = {
 
     # Linux command mode
     "cmd":  ("cmd",  False, False, 0),
+    "tst": ("tst", True, False, 0),
+    "fuck": ("fuck", False, False, 0),
+    "fucv": ("fuck", False, True, 0),
+    "fix": ("fix", False, False, 0),
+    "fiv": ("fix", False, True, 0),
+    "sujal": ("sujal", False, False, 0),
+    "sujac": ("sujal", False, True, 0),
+    "sqlite": ("sqlite", False, False, 0),
+    "csql": ("sqlite", False, True, 0),
 }
 
 # ─── System prompts ───────────────────────────────────────────────────────────
 SYSTEM_PROMPTS = {
     "ai": "You are a helpful assistant. Provide a direct, concise answer without any introductory or conversational filler. Output the raw answer directly.",
     "ad": "Provide a very precise and direct answer in 1 or 2 sentences maximum. No fluff. Do not include markdown if it's a simple text answer.",
-    "fix": "Fix all spelling and grammar mistakes in the user's text. You MUST preserve the original tone, meaning, and formatting exactly. Output ONLY the corrected text, without any explanation.",
     "tldr": "Summarize the following text or concept in 1 or 2 concise sentences.",
     "ref": "Refactor the provided code to be more readable, efficient, and idiomatic. Add brief, helpful comments explaining your changes. Output ONLY the code.",
     "py": "Write an elegant, idiomatic Python script to solve the user's request. Output ONLY valid python code. No markdown formatting or explanations.",
@@ -114,28 +97,52 @@ SYSTEM_PROMPTS = {
     "hi": "Translate the following text to Hindi natively using Devanagari script. Output ONLY the translated Devanagari text. Do not add any quotes, markdown, or English text.",
     "hd": "Transliterate the following Romanized Hindi (Hinglish) text into proper Devanagari script. Keep the exact same words, just change the script. Output ONLY the Devanagari text.",
     "hu": "Translate the following Hinglish (or mix of English/Hindi) text into proper, natural Hindi using Devanagari script. Output ONLY the Devanagari text.",
+    "tst": "This is a test AI prompt",
+    "fuck": "Take input and reply in a very roasting hilarious way, unfiltered words, the response for the friend convos.",
+    "fix": "Fix all spelling and grammar mistakes in the user's text. You MUST preserve the original tone, meaning, and formatting exactly. Output ONLY the corrected text, without any explanation.IF THE TEXT IS A CODEBLOCK, THEN GIVE THE CORRECT CODE ALONG WITH A COMMENT ABOUT THE MISTAKE IN THE CODE (IN CODE CASE ONLY, RETURN THE CODE AS OUTPUT WITHOUT ANY EXTRA TEXT).",
+    "sujal": "Whenenever you reply, add the {To, Sujal at the starting} and reply in short.",
+    "sqlite": "Given a natural language question or a context describing a data requirement, generate a single, error-free SQL query that directly addresses the user's intent. Assume a well-structured relational database. Provide only the SQL query as the output.",
 }
 
-CODE_MODES = {"hi", "hd", "hu", "fix", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad", "cmd"}
+CODE_MODES = {"hi", "hd", "hu", "tldr", "ref", "py", "cp", "sh", "htm", "csv", "json", "ad", "cmd", "tst", "fix", "sqlite"}
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def copy_to_clipboard(text: str) -> None:
     """Write text to Wayland clipboard AND primary selection, fallback to xclip."""
-    for cmd in [["wl-copy"], ["wl-copy", "-p"], ["xclip", "-selection", "clipboard"], ["xclip", "-selection", "primary"]]:
+    # Wayland: set both regular clipboard and primary selection
+    for cmd in [["wl-copy"], ["wl-copy", "-p"]]:
         try:
-            p = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                 stdout=open("/tmp/tinc_worker.out", "w"), stderr=subprocess.DEVNULL)
-            p.communicate(input=text.encode("utf-8"), timeout=5)
+            subprocess.run(
+                cmd,
+                input=text.encode("utf-8"),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=1
+            )
         except Exception:
-            continue
+            pass
+
+    # X11 / Xwayland fallback: set both clipboard and primary selection
+    for cmd in [["xclip", "-selection", "clipboard"], ["xclip", "-selection", "primary"]]:
+        try:
+            subprocess.run(
+                cmd,
+                input=text.encode("utf-8"),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=0.5
+            )
+        except Exception:
+            pass
+
 
 def get_clipboard_text() -> str:
     """Read current clipboard content."""
     for cmd in [["wl-paste", "--no-newline"], ["xclip", "-selection", "clipboard", "-o"]]:
         try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=2)
             if r.returncode == 0 and r.stdout.strip():
                 return r.stdout
         except Exception:
@@ -166,6 +173,9 @@ def build_messages(mode: str, prompt: str, context: str = "") -> list:
 # ─── Async worker ─────────────────────────────────────────────────────────────
 
 def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool, paste_mode: int) -> None:
+    # Grace period to ensure Espanso has completed backspacing trigger and writing loading text
+    time.sleep(0.12)
+
     # Fetch clipboard context if needed
     context = get_clipboard_text() if use_clipboard else ""
 
@@ -183,15 +193,22 @@ def async_worker(mode: str, prompt: str, web_search: bool, use_clipboard: bool, 
         tinc_uinput.backspace(LOADING_LEN)
         return
 
-    # Erase loading text, then paste result
-    tinc_uinput.backspace(LOADING_LEN)
+    # Set both clipboard and primary selection to the AI result
     copy_to_clipboard(result)
-    time.sleep(0.1)   # brief pause so clipboard settles before paste
-    
-    if paste_mode == 1:
-        tinc_uinput.ctrl_shift_v()
-    else:
-        tinc_uinput.shift_insert()
+    time.sleep(0.04)   # brief pause so clipboard registers before paste
+
+    # Atomically erase loading text and paste
+    ok = tinc_uinput.erase_and_paste(LOADING_LEN, paste_mode)
+    if not ok:
+        # Fallback if atomic uinput failed
+        tinc_uinput.backspace(LOADING_LEN)
+        time.sleep(0.05)
+        if paste_mode == 1:
+            tinc_uinput.ctrl_shift_v()
+        elif paste_mode == 2:
+            tinc_uinput.ctrl_v()
+        else:
+            tinc_uinput.shift_insert()
 
 
 # ─── Main router ──────────────────────────────────────────────────────────────

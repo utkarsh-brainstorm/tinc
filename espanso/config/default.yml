@@ -4,9 +4,6 @@
 # ============================================================
 
 # Backend: Auto (EVDEV on Linux).
-# Espanso detects keypresses via /dev/input (kernel-level, no portal).
-# Text injection via /dev/uinput (kernel-level, no portal).
-# This is the most reliable backend on Linux — zero popups, zero portals.
 backend: "auto"
 
 # Keyboard layout
@@ -15,18 +12,21 @@ keyboard_layout:
   variant: ""
 
 # Clipboard injection for Espanso's OWN trigger replacement.
-# Required: prevents Espanso typing char-by-char (which breaks regex triggers).
 force_clipboard: true
 
-# Keep AI/translated output in clipboard after pasting (useful to re-paste).
+# Keep AI/translated output in clipboard after pasting
 restore_clipboard: false
 
 # Regex buffer: must be large enough for longest [prompt]ai trigger.
-# Default 30 chars would silently break long prompts.
 max_regex_buffer_size: 10000
 
+# Backspace settings to prevent half-deleted prompt glitches
+backspace_limit: 10000
+backspace_delay: 3
+inject_delay: 5
+undo_backspace: false
+
 # Word separators: do NOT include [ or ] — they are used in our trigger syntax.
-# Including them would reset Espanso's capture buffer mid-trigger.
 word_separators:
   - "\n"
   - "\r"
