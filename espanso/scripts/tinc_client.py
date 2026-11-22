@@ -44,7 +44,13 @@ def load_config() -> dict:
                             k = k.strip().lower()
                             v = v.strip().strip('"').strip("'")
                             if k not in cfg or not cfg[k]:
-                                cfg[k] = v
+                                if k == "max_tokens":
+                                    try:
+                                        cfg[k] = int(v)
+                                    except Exception:
+                                        cfg[k] = v
+                                else:
+                                    cfg[k] = v
             except Exception:
                 pass
     return cfg
@@ -52,7 +58,7 @@ def load_config() -> dict:
 
 # ─── Gemini ──────────────────────────────────────────────────────────────────
 
-def _gemini_chat(messages: list, api_key: str, model: str, web_search: bool = False) -> str:
+def _gemini_chat(messages: list, api_key: str, model: str, web_search: bool = False, max_tokens: int = 16384) -> str:
     """
     Call Google Gemini API.
     Raises urllib.error.HTTPError on quota/auth errors (caller handles fallback).
@@ -75,7 +81,7 @@ def _gemini_chat(messages: list, api_key: str, model: str, web_search: bool = Fa
 
     body: dict = {
         "contents": contents,
-        "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.5},
+        "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.5},
     }
     if system_text:
         body["systemInstruction"] = {"parts": [{"text": system_text}]}
@@ -90,7 +96,7 @@ def _gemini_chat(messages: list, api_key: str, model: str, web_search: bool = Fa
         headers={"Content-Type": "application/json", "User-Agent": "tinc/1.0"},
         method="POST"
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=60) as resp:
         result = json.loads(resp.read().decode("utf-8"))
         parts = result.get("candidates", [{}])[0].get("content", {}).get("parts", [])
         return "".join(p.get("text", "") for p in parts if "text" in p)
@@ -98,7 +104,7 @@ def _gemini_chat(messages: list, api_key: str, model: str, web_search: bool = Fa
 
 # ─── NVIDIA NIM ──────────────────────────────────────────────────────────────
 
-def _nvidia_chat(messages: list, api_key: str, model: str) -> str:
+def _nvidia_chat(messages: list, api_key: str, model: str, max_tokens: int = 16384) -> str:
     """
     Call NVIDIA NIM API (OpenAI-compatible endpoint).
     """
@@ -109,7 +115,7 @@ def _nvidia_chat(messages: list, api_key: str, model: str) -> str:
         "model": model,
         "messages": messages,
         "temperature": 0.5,
-        "max_tokens": 1024
+        "max_tokens": max_tokens
     }).encode("utf-8")
     req = urllib.request.Request(
         "https://integrate.api.nvidia.com/v1/chat/completions",
@@ -121,7 +127,7 @@ def _nvidia_chat(messages: list, api_key: str, model: str) -> str:
         },
         method="POST"
     )
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=60) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         msg = data.get("choices", [{}])[0].get("message", {})
         # Support both standard content and reasoning models (Nemotron/R1 style)
@@ -131,29 +137,47 @@ def _nvidia_chat(messages: list, api_key: str, model: str) -> str:
 
 # ─── Groq ────────────────────────────────────────────────────────────────────
 
-def _groq_chat(messages: list, api_key: str, model: str) -> str:
-    """Call Groq API."""
+def _groq_chat(messages: list, api_key: str, model: str, max_tokens: int = 16384) -> str:
+    """Call Groq API with automatic recovery if model context ceiling is lower."""
     if not api_key or not api_key.strip():
         raise ValueError("empty groq key")
-    payload = json.dumps({
-        "model": model,
-        "messages": messages,
-        "temperature": 0.5,
-        "stream": False,
-        "max_tokens": 1024,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.groq.com/openai/v1/chat/completions",
-        data=payload,
-        headers={
-            "Authorization": f"Bearer {api_key.strip()}",
-            "Content-Type": "application/json",
-            "User-Agent": "tinc/1.0"
-        },
-        method="POST"
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))["choices"][0]["message"]["content"]
+
+    tokens_to_try = max_tokens
+    for attempt in range(2):
+        payload = json.dumps({
+            "model": model,
+            "messages": messages,
+            "temperature": 0.5,
+            "stream": False,
+            "max_tokens": tokens_to_try,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.groq.com/openai/v1/chat/completions",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key.strip()}",
+                "Content-Type": "application/json",
+                "User-Agent": "tinc/1.0"
+            },
+            method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read().decode("utf-8"))["choices"][0]["message"]["content"]
+        except urllib.error.HTTPError as e:
+            if e.code == 400 and attempt == 0:
+                try:
+                    err_msg = e.read().decode("utf-8")
+                    m = re.search(r"less than or equal to `?(\d+)`?", err_msg)
+                    if m:
+                        tokens_to_try = int(m.group(1))
+                        continue
+                    elif tokens_to_try > 8192:
+                        tokens_to_try = 8192
+                        continue
+                except Exception:
+                    pass
+            raise e
 
 
 # ─── Error Helper ────────────────────────────────────────────────────────────
@@ -181,13 +205,17 @@ def chat(messages: list, web_search: bool = False) -> str:
     """
     cfg = load_config()
     last = "no providers configured"
+    try:
+        max_tokens = int(cfg.get("max_tokens", 16384))
+    except (ValueError, TypeError):
+        max_tokens = 16384
 
     # 1. Gemini
     gemini_keys = [k for k in [cfg.get("gemini_api_key"), cfg.get("gemini_api_key_2")] if k and k.strip()]
     gemini_model = cfg.get("gemini_model", "gemini-2.5-flash")
     for i, gkey in enumerate(gemini_keys):
         try:
-            return _gemini_chat(messages, gkey, gemini_model, web_search=web_search)
+            return _gemini_chat(messages, gkey, gemini_model, web_search=web_search, max_tokens=max_tokens)
         except urllib.error.HTTPError as e:
             last = f"Gemini Key {i+1} {_parse_wait(e)}"
             continue
@@ -200,7 +228,7 @@ def chat(messages: list, web_search: bool = False) -> str:
     nvidia_model = cfg.get("nvidia_model", "minimaxai/minimax-m3.1-flash")
     for i, nkey in enumerate(nvidia_keys):
         try:
-            return _nvidia_chat(messages, nkey, nvidia_model)
+            return _nvidia_chat(messages, nkey, nvidia_model, max_tokens=max_tokens)
         except urllib.error.HTTPError as e:
             last = f"NVIDIA Key {i+1} {_parse_wait(e)}"
             continue
@@ -215,7 +243,7 @@ def chat(messages: list, web_search: bool = False) -> str:
         if not (grkey or "").strip():
             continue
         try:
-            return _groq_chat(messages, grkey, groq_model)
+            return _groq_chat(messages, grkey, groq_model, max_tokens=max_tokens)
         except urllib.error.HTTPError as e:
             last = f"Groq Key {i+1} {_parse_wait(e)}"
             continue

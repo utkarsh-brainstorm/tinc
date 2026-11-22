@@ -979,6 +979,39 @@ tr:hover td { background: rgba(0,0,0,0.015); }
         </div>
       </div>
     </div>
+
+    <!-- GENERATION & TOKEN LIMITS CARD -->
+    <div class="card" style="margin-top:24px;">
+      <div class="card-header">
+        <span class="card-title">
+          Generation & Context Limits
+          <span class="badge badge-blue">12k+ Context</span>
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="field" style="margin-bottom:0;">
+          <label>Max Output Tokens (Completion Ceiling)</label>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+            <div>
+              <select id="max-tokens-select" onchange="onMaxTokensChange(this.value)">
+                <option value="8192">8,192 tokens (~6,000 words)</option>
+                <option value="12288">12,288 tokens (~9,000 words — 12k+ Standard)</option>
+                <option value="16384">16,384 tokens (~12,000 words — Recommended)</option>
+                <option value="32768">32,768 tokens (~24,000 words — Deep Code & Docs)</option>
+                <option value="65536">65,536 tokens (~48,000 words — Maximum Context)</option>
+                <option value="custom">Custom Token Limit...</option>
+              </select>
+            </div>
+            <div id="max-tokens-custom-wrap" style="display:none;">
+              <input type="number" id="max-tokens-custom" placeholder="e.g. 16384" min="512" max="131072">
+            </div>
+          </div>
+          <p style="font-size:12px; color:var(--text-secondary); margin-top:8px; line-height:1.5;">
+            Governs the maximum response length across Gemini, NVIDIA NIM, and Groq. Gemini and NVIDIA models support 16k–65k+ output tokens with input context up to 1M+ tokens.
+          </p>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- 4. RAW CONFIGURATIONS & BACKUPS -->
@@ -1464,6 +1497,25 @@ async function loadConfig() {
   }
 
   renderGroqKeys(groqKeys);
+
+  // Max Output Tokens
+  const maxTokens = r.max_tokens || 16384;
+  const mtSelect = $('max-tokens-select');
+  let matchedMT = false;
+  for (let opt of mtSelect.options) {
+    if (opt.value === String(maxTokens)) {
+      mtSelect.value = String(maxTokens);
+      matchedMT = true;
+      break;
+    }
+  }
+  if (!matchedMT) {
+    mtSelect.value = 'custom';
+    $('max-tokens-custom').value = maxTokens;
+    $('max-tokens-custom-wrap').style.display = 'block';
+  } else {
+    $('max-tokens-custom-wrap').style.display = 'none';
+  }
 }
 
 function onGeminiModelChange(val) {
@@ -1479,6 +1531,11 @@ function onNvidiaModelChange(val) {
 function onGroqModelChange(val) {
   $('groq-custom-wrap').style.display = val === 'custom' ? 'block' : 'none';
   if (val === 'custom') $('groq-custom-model').focus();
+}
+
+function onMaxTokensChange(val) {
+  $('max-tokens-custom-wrap').style.display = val === 'custom' ? 'block' : 'none';
+  if (val === 'custom') $('max-tokens-custom').focus();
 }
 
 function renderGroqKeys(keys) {
@@ -1559,6 +1616,10 @@ $('btn-save-settings').onclick = async () => {
     .map(el => el.value.trim())
     .filter(Boolean);
 
+  const mtSelect = $('max-tokens-select').value;
+  let max_tokens = mtSelect === 'custom' ? parseInt($('max-tokens-custom').value, 10) : parseInt(mtSelect, 10);
+  if (isNaN(max_tokens) || max_tokens <= 0) max_tokens = 16384;
+
   const res = await api('/api/config', 'POST', {
     gemini_api_key: $('gemini-key').value.trim(),
     gemini_api_key_2: $('gemini-key-2').value.trim(),
@@ -1567,7 +1628,8 @@ $('btn-save-settings').onclick = async () => {
     nvidia_api_key_2: $('nvidia-key-2').value.trim(),
     nvidia_model,
     groq_model,
-    groq_api_keys
+    groq_api_keys,
+    max_tokens
   });
 
   if (res.ok) {

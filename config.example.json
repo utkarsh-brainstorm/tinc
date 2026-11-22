@@ -1,10 +1,15 @@
 {
   "gemini_api_key": "YOUR_GEMINI_API_KEY_HERE",
-  "gemini_model":   "gemini-2.5-flash-lite",
-  "groq_api_keys":  [
+  "gemini_api_key_2": "OPTIONAL_SECONDARY_GEMINI_KEY",
+  "gemini_model": "gemini-2.5-flash",
+  "nvidia_api_key": "YOUR_NVIDIA_API_KEY_HERE",
+  "nvidia_api_key_2": "OPTIONAL_SECONDARY_NVIDIA_KEY",
+  "nvidia_model": "minimaxai/minimax-m3.1-flash",
+  "groq_api_keys": [
     "YOUR_GROQ_API_KEY_1",
     "YOUR_GROQ_API_KEY_2",
     "YOUR_GROQ_API_KEY_3"
   ],
-  "groq_model": "llama-3.3-70b-versatile"
+  "groq_model": "llama-3.3-70b-versatile",
+  "max_tokens": 16384
 }

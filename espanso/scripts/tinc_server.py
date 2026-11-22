@@ -153,6 +153,7 @@ def write_project_env(cfg: dict) -> None:
         f"NVIDIA_API_KEY_2=\"{cfg.get('nvidia_api_key_2', '')}\"",
         f"NVIDIA_MODEL=\"{cfg.get('nvidia_model', 'minimaxai/minimax-m3.1-flash')}\"",
         f"GROQ_MODEL=\"{cfg.get('groq_model', 'llama-3.3-70b-versatile')}\"",
+        f"MAX_TOKENS=\"{cfg.get('max_tokens', 16384)}\"",
     ]
     env_content = "\n".join(lines) + "\n"
     
@@ -438,6 +439,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 "groq_api_keys":    [mask(k) for k in groq_keys],
                 "groq_model":       cfg.get("groq_model", "llama-3.3-70b-versatile"),
                 "groq_key_count":   len(groq_keys),
+                "max_tokens":       int(cfg.get("max_tokens", 16384)),
             })
 
         if p == "/api/prompts":
@@ -560,6 +562,12 @@ class H(http.server.BaseHTTPRequestHandler):
                         new.append(k_str)
                 cfg["groq_api_keys"] = new
 
+            if "max_tokens" in d:
+                try:
+                    cfg["max_tokens"] = int(d["max_tokens"])
+                except (ValueError, TypeError):
+                    pass
+
             write_config(cfg)
             return self._json({"ok": True})
 
@@ -595,12 +603,13 @@ class H(http.server.BaseHTTPRequestHandler):
             t0 = time.time()
             try:
                 import tinc_client
+                max_tok = int(cfg.get("max_tokens", 16384))
                 if provider == "gemini":
-                    res = tinc_client._gemini_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, web_search=False)
+                    res = tinc_client._gemini_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, web_search=False, max_tokens=max_tok)
                 elif provider == "nvidia":
-                    res = tinc_client._nvidia_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model)
+                    res = tinc_client._nvidia_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, max_tokens=max_tok)
                 else:
-                    res = tinc_client._groq_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model)
+                    res = tinc_client._groq_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, max_tokens=max_tok)
                 latency = int((time.time() - t0) * 1000)
                 return self._json({"ok": True, "latency_ms": latency, "response": (res or "").strip()[:50]})
             except Exception as e:
