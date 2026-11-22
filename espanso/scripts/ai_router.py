@@ -23,8 +23,8 @@ import tinc_client
 import tinc_uinput
 
 
-LOADING_TEXT = "[thinking...]"
-LOADING_LEN  = len(LOADING_TEXT)  # exactly 13 ASCII chars
+LOADING_TEXT = "Abra ka Dabra..."
+LOADING_LEN  = len(LOADING_TEXT)  # exactly 16 ASCII chars
 
 # ─── Suffix → (mode, web_search, use_clipboard, paste_mode) ───────────────
 # paste_mode: 0 = Shift+Insert, 1 = Ctrl+Shift+V (Ptyxis), 2 = Ctrl+V

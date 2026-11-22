@@ -847,13 +847,22 @@ tr:hover td { background: rgba(0,0,0,0.015); }
       </div>
       <div class="card-body">
         <div class="field">
-          <label>API Key</label>
+          <label>Primary API Key (Slot 1)</label>
           <div class="input-row">
-            <input type="password" id="gemini-key" placeholder="Paste Gemini API key or leave unchanged">
+            <input type="password" id="gemini-key" placeholder="Paste Primary Gemini API key">
             <button class="btn btn-default" onclick="toggleP('gemini-key')">Show</button>
-            <button class="btn btn-default" id="btn-test-gemini" onclick="testProvider('gemini')">Test Key</button>
+            <button class="btn btn-default" onclick="testProvider('gemini', 1)">Test Key 1</button>
           </div>
-          <div id="gemini-test-result" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="field">
+          <label>Secondary API Key (Slot 2 — Automatic Failover)</label>
+          <div class="input-row">
+            <input type="password" id="gemini-key-2" placeholder="Paste Secondary Gemini API key or leave blank">
+            <button class="btn btn-default" onclick="toggleP('gemini-key-2')">Show</button>
+            <button class="btn btn-default" onclick="testProvider('gemini', 2)">Test Key 2</button>
+          </div>
+          <div id="gemini-test-result" style="margin-top:10px;"></div>
         </div>
 
         <div class="field" style="margin-bottom:0;">
@@ -861,8 +870,8 @@ tr:hover td { background: rgba(0,0,0,0.015); }
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
             <div>
               <select id="gemini-model-select" onchange="onGeminiModelChange(this.value)">
-                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Recommended — Ultra Fast)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash (Balanced & High Intelligence)</option>
+                <option value="gemini-2.5-flash">gemini-2.5-flash (Recommended — High Intelligence & Fast)</option>
+                <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Ultra Fast & Lightweight)</option>
                 <option value="gemini-2.5-pro">gemini-2.5-pro (Deep Reasoning & Complex Coding)</option>
                 <option value="gemini-2.0-flash">gemini-2.0-flash (Fast Next-Gen)</option>
                 <option value="gemini-1.5-flash">gemini-1.5-flash (Standard)</option>
@@ -872,6 +881,56 @@ tr:hover td { background: rgba(0,0,0,0.015); }
             </div>
             <div id="gemini-custom-wrap" style="display:none;">
               <input type="text" id="gemini-custom-model" placeholder="Enter custom Gemini model ID">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NVIDIA CARD -->
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-header">
+        <span class="card-title">
+          NVIDIA NIM (Secondary Provider)
+          <span id="nvidia-status-badge" class="badge badge-gray">Checking</span>
+        </span>
+        <a href="https://build.nvidia.com/" target="_blank" class="btn btn-ghost btn-sm" style="font-size:12px;">Get Key ↗</a>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Primary API Key (Slot 1)</label>
+          <div class="input-row">
+            <input type="password" id="nvidia-key" placeholder="nvapi-... (Paste Primary NVIDIA API key)">
+            <button class="btn btn-default" onclick="toggleP('nvidia-key')">Show</button>
+            <button class="btn btn-default" onclick="testProvider('nvidia', 1)">Test Key 1</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Secondary API Key (Slot 2 — Automatic Failover)</label>
+          <div class="input-row">
+            <input type="password" id="nvidia-key-2" placeholder="nvapi-... (Paste Secondary NVIDIA key or leave blank)">
+            <button class="btn btn-default" onclick="toggleP('nvidia-key-2')">Show</button>
+            <button class="btn btn-default" onclick="testProvider('nvidia', 2)">Test Key 2</button>
+          </div>
+          <div id="nvidia-test-result" style="margin-top:10px;"></div>
+        </div>
+
+        <div class="field" style="margin-bottom:0;">
+          <label>Model Selector</label>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+            <div>
+              <select id="nvidia-model-select" onchange="onNvidiaModelChange(this.value)">
+                <option value="minimaxai/minimax-m3.1-flash">minimaxai/minimax-m3.1-flash (Recommended — Ultra Fast)</option>
+                <option value="nvidia/nemotron-3.5-lightning-30b-a3b">nvidia/nemotron-3.5-lightning-30b-a3b (Nemotron 30B Reasoning)</option>
+                <option value="mistralai/mistral-large-4-1t-a52b">mistralai/mistral-large-4-1t-a52b (Mistral Large)</option>
+                <option value="z-ai/glm-5.3-flash">z-ai/glm-5.3-flash (GLM 5.3 Flash)</option>
+                <option value="stepfun-ai/step-5-preview">stepfun-ai/step-5-preview (Step 5 Preview)</option>
+                <option value="custom">Custom Model ID...</option>
+              </select>
+            </div>
+            <div id="nvidia-custom-wrap" style="display:none;">
+              <input type="text" id="nvidia-custom-model" placeholder="Enter custom NVIDIA model ID">
             </div>
           </div>
         </div>
@@ -1312,19 +1371,20 @@ async function deleteShortcut(trigger) {
 async function loadConfig() {
   const r = await api('/api/config');
 
-  // Gemini Key
+  // Gemini Keys (Slot 1 & 2)
   $('gemini-key').value = r.gemini_api_key || '';
+  $('gemini-key-2').value = r.gemini_api_key_2 || '';
   const gBadge = $('gemini-status-badge');
   if (r.has_gemini) {
     gBadge.className = 'badge badge-green';
-    gBadge.textContent = 'Configured';
+    gBadge.textContent = `${r.gemini_key_count || 1} Key${(r.gemini_key_count || 1) > 1 ? 's' : ''} Ready`;
   } else {
     gBadge.className = 'badge badge-gray';
     gBadge.textContent = 'Not Set';
   }
 
   // Gemini Model
-  const gModel = r.gemini_model || 'gemini-2.5-flash-lite';
+  const gModel = r.gemini_model || 'gemini-2.5-flash';
   const gSelect = $('gemini-model-select');
   let matchedG = false;
   for (let opt of gSelect.options) {
@@ -1340,6 +1400,37 @@ async function loadConfig() {
     $('gemini-custom-wrap').style.display = 'block';
   } else {
     $('gemini-custom-wrap').style.display = 'none';
+  }
+
+  // NVIDIA Keys (Slot 1 & 2)
+  $('nvidia-key').value = r.nvidia_api_key || '';
+  $('nvidia-key-2').value = r.nvidia_api_key_2 || '';
+  const nBadge = $('nvidia-status-badge');
+  if (r.has_nvidia) {
+    nBadge.className = 'badge badge-green';
+    nBadge.textContent = `${r.nvidia_key_count || 1} Key${(r.nvidia_key_count || 1) > 1 ? 's' : ''} Ready`;
+  } else {
+    nBadge.className = 'badge badge-gray';
+    nBadge.textContent = 'Not Set';
+  }
+
+  // NVIDIA Model
+  const nModel = r.nvidia_model || 'minimaxai/minimax-m3.1-flash';
+  const nSelect = $('nvidia-model-select');
+  let matchedN = false;
+  for (let opt of nSelect.options) {
+    if (opt.value === nModel) {
+      nSelect.value = nModel;
+      matchedN = true;
+      break;
+    }
+  }
+  if (!matchedN) {
+    nSelect.value = 'custom';
+    $('nvidia-custom-model').value = nModel;
+    $('nvidia-custom-wrap').style.display = 'block';
+  } else {
+    $('nvidia-custom-wrap').style.display = 'none';
   }
 
   // Groq Model
@@ -1380,6 +1471,11 @@ function onGeminiModelChange(val) {
   if (val === 'custom') $('gemini-custom-model').focus();
 }
 
+function onNvidiaModelChange(val) {
+  $('nvidia-custom-wrap').style.display = val === 'custom' ? 'block' : 'none';
+  if (val === 'custom') $('nvidia-custom-model').focus();
+}
+
 function onGroqModelChange(val) {
   $('groq-custom-wrap').style.display = val === 'custom' ? 'block' : 'none';
   if (val === 'custom') $('groq-custom-model').focus();
@@ -1418,17 +1514,21 @@ $('btn-add-groq-key').onclick = () => {
   div.querySelector('input').focus();
 };
 
-async function testProvider(provider) {
+async function testProvider(provider, slot = 1) {
   const resultDiv = $(`${provider}-test-result`);
-  resultDiv.innerHTML = `<span class="test-result testing">Testing ${provider.toUpperCase()} connection...</span>`;
+  resultDiv.innerHTML = `<span class="test-result testing">Testing ${provider.toUpperCase()} Key #${slot}...</span>`;
 
   let key = '';
   let model = '';
 
   if (provider === 'gemini') {
-    key = $('gemini-key').value.trim();
+    key = slot === 2 ? $('gemini-key-2').value.trim() : $('gemini-key').value.trim();
     const gSelect = $('gemini-model-select').value;
     model = gSelect === 'custom' ? $('gemini-custom-model').value.trim() : gSelect;
+  } else if (provider === 'nvidia') {
+    key = slot === 2 ? $('nvidia-key-2').value.trim() : $('nvidia-key').value.trim();
+    const nSelect = $('nvidia-model-select').value;
+    model = nSelect === 'custom' ? $('nvidia-custom-model').value.trim() : nSelect;
   } else {
     const keyInputs = document.querySelectorAll('.groq-key-input');
     key = keyInputs.length ? keyInputs[0].value.trim() : '';
@@ -1436,18 +1536,21 @@ async function testProvider(provider) {
     model = grSelect === 'custom' ? $('groq-custom-model').value.trim() : grSelect;
   }
 
-  const res = await api('/api/config/test', 'POST', { provider, api_key: key, model });
+  const res = await api('/api/config/test', 'POST', { provider, api_key: key, model, key_slot: slot });
 
   if (res.ok) {
-    resultDiv.innerHTML = `<span class="test-result success">✓ Connection verified! (${res.latency_ms}ms) — Model responded: "${escapeHtml(res.response || 'OK')}"</span>`;
+    resultDiv.innerHTML = `<span class="test-result success">✓ Key #${slot} verified! (${res.latency_ms}ms) — Response: "${escapeHtml(res.response || 'OK')}"</span>`;
   } else {
-    resultDiv.innerHTML = `<span class="test-result error">✕ Connection failed (${res.latency_ms || 0}ms): ${escapeHtml(res.error || 'Unknown error')}</span>`;
+    resultDiv.innerHTML = `<span class="test-result error">✕ Key #${slot} failed (${res.latency_ms || 0}ms): ${escapeHtml(res.error || 'Unknown error')}</span>`;
   }
 }
 
 $('btn-save-settings').onclick = async () => {
   const geminiSelect = $('gemini-model-select').value;
   const gemini_model = geminiSelect === 'custom' ? $('gemini-custom-model').value.trim() : geminiSelect;
+
+  const nvidiaSelect = $('nvidia-model-select').value;
+  const nvidia_model = nvidiaSelect === 'custom' ? $('nvidia-custom-model').value.trim() : nvidiaSelect;
 
   const groqSelect = $('groq-model-select').value;
   const groq_model = groqSelect === 'custom' ? $('groq-custom-model').value.trim() : groqSelect;
@@ -1458,7 +1561,11 @@ $('btn-save-settings').onclick = async () => {
 
   const res = await api('/api/config', 'POST', {
     gemini_api_key: $('gemini-key').value.trim(),
+    gemini_api_key_2: $('gemini-key-2').value.trim(),
     gemini_model,
+    nvidia_api_key: $('nvidia-key').value.trim(),
+    nvidia_api_key_2: $('nvidia-key-2').value.trim(),
+    nvidia_model,
     groq_model,
     groq_api_keys
   });

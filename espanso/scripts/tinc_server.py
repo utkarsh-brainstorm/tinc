@@ -142,15 +142,43 @@ def read_config() -> dict:
     except Exception:
         return {}
 
+def write_project_env(cfg: dict) -> None:
+    """Store variables in project-isolated .env files without touching machine environment variables."""
+    lines = [
+        "# Tinc Project Environment (Isolated to Tinc — NOT machine-wide)",
+        f"GEMINI_API_KEY=\"{cfg.get('gemini_api_key', '')}\"",
+        f"GEMINI_API_KEY_2=\"{cfg.get('gemini_api_key_2', '')}\"",
+        f"GEMINI_MODEL=\"{cfg.get('gemini_model', 'gemini-2.5-flash')}\"",
+        f"NVIDIA_API_KEY=\"{cfg.get('nvidia_api_key', '')}\"",
+        f"NVIDIA_API_KEY_2=\"{cfg.get('nvidia_api_key_2', '')}\"",
+        f"NVIDIA_MODEL=\"{cfg.get('nvidia_model', 'minimaxai/minimax-m3.1-flash')}\"",
+        f"GROQ_MODEL=\"{cfg.get('groq_model', 'llama-3.3-70b-versatile')}\"",
+    ]
+    env_content = "\n".join(lines) + "\n"
+    
+    paths = [os.path.expanduser("~/.config/tinc/.env")]
+    if REPO_DIR:
+        paths.append(os.path.join(REPO_DIR, ".env"))
+
+    for p in paths:
+        try:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8") as f:
+                f.write(env_content)
+            os.chmod(p, 0o600)
+        except Exception:
+            pass
+
 def write_config(cfg: dict) -> None:
     backup_file(CONFIG_PATH)
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2, ensure_ascii=False)
+    write_project_env(cfg)
 
 def mask(key: str) -> str:
     if not key or len(key) < 8:
-        return "••••"
+        return "••••" if key else ""
     return "•" * (len(key) - 4) + key[-4:]
 
 def espanso_run(args: list) -> dict:
@@ -388,13 +416,28 @@ class H(http.server.BaseHTTPRequestHandler):
 
         if p == "/api/config":
             cfg = read_config()
+            gk1 = cfg.get("gemini_api_key", "")
+            gk2 = cfg.get("gemini_api_key_2", "")
+            nk1 = cfg.get("nvidia_api_key", "")
+            nk2 = cfg.get("nvidia_api_key_2", "")
+            groq_keys = cfg.get("groq_api_keys", [])
+
             return self._json({
-                "gemini_api_key": mask(cfg.get("gemini_api_key", "")),
-                "gemini_model":   cfg.get("gemini_model", "gemini-2.5-flash-lite"),
-                "groq_api_keys":  [mask(k) for k in cfg.get("groq_api_keys", [])],
-                "groq_model":     cfg.get("groq_model", "llama-3.3-70b-versatile"),
-                "groq_key_count": len(cfg.get("groq_api_keys", [])),
-                "has_gemini":     bool(cfg.get("gemini_api_key", "").strip()),
+                "gemini_api_key":   mask(gk1),
+                "gemini_api_key_2": mask(gk2),
+                "gemini_model":     cfg.get("gemini_model", "gemini-2.5-flash"),
+                "has_gemini":       bool(gk1.strip() or gk2.strip()),
+                "gemini_key_count": sum(1 for k in [gk1, gk2] if k.strip()),
+
+                "nvidia_api_key":   mask(nk1),
+                "nvidia_api_key_2": mask(nk2),
+                "nvidia_model":     cfg.get("nvidia_model", "minimaxai/minimax-m3.1-flash"),
+                "has_nvidia":       bool(nk1.strip() or nk2.strip()),
+                "nvidia_key_count": sum(1 for k in [nk1, nk2] if k.strip()),
+
+                "groq_api_keys":    [mask(k) for k in groq_keys],
+                "groq_model":       cfg.get("groq_model", "llama-3.3-70b-versatile"),
+                "groq_key_count":   len(groq_keys),
             })
 
         if p == "/api/prompts":
@@ -465,13 +508,47 @@ class H(http.server.BaseHTTPRequestHandler):
 
         if p == "/api/config":
             cfg = read_config()
-            gk = d.get("gemini_api_key", "").strip()
-            if gk and "•" not in gk:
-                cfg["gemini_api_key"] = gk
+
+            # Gemini Key 1 & 2
+            if "gemini_api_key" in d:
+                gk1 = d.get("gemini_api_key", "").strip()
+                if gk1 and "•" not in gk1:
+                    cfg["gemini_api_key"] = gk1
+                elif gk1 == "":
+                    cfg["gemini_api_key"] = ""
+
+            if "gemini_api_key_2" in d:
+                gk2 = d.get("gemini_api_key_2", "").strip()
+                if gk2 and "•" not in gk2:
+                    cfg["gemini_api_key_2"] = gk2
+                elif gk2 == "":
+                    cfg["gemini_api_key_2"] = ""
+
             if "gemini_model" in d and d["gemini_model"].strip():
                 cfg["gemini_model"] = d["gemini_model"].strip()
+
+            # NVIDIA Key 1 & 2
+            if "nvidia_api_key" in d:
+                nk1 = d.get("nvidia_api_key", "").strip()
+                if nk1 and "•" not in nk1:
+                    cfg["nvidia_api_key"] = nk1
+                elif nk1 == "":
+                    cfg["nvidia_api_key"] = ""
+
+            if "nvidia_api_key_2" in d:
+                nk2 = d.get("nvidia_api_key_2", "").strip()
+                if nk2 and "•" not in nk2:
+                    cfg["nvidia_api_key_2"] = nk2
+                elif nk2 == "":
+                    cfg["nvidia_api_key_2"] = ""
+
+            if "nvidia_model" in d and d["nvidia_model"].strip():
+                cfg["nvidia_model"] = d["nvidia_model"].strip()
+
+            # Groq
             if "groq_model" in d and d["groq_model"].strip():
                 cfg["groq_model"] = d["groq_model"].strip()
+
             if "groq_api_keys" in d:
                 old = cfg.get("groq_api_keys", [])
                 new = []
@@ -482,6 +559,7 @@ class H(http.server.BaseHTTPRequestHandler):
                     elif "•" not in k_str and k_str:
                         new.append(k_str)
                 cfg["groq_api_keys"] = new
+
             write_config(cfg)
             return self._json({"ok": True})
 
@@ -489,28 +567,38 @@ class H(http.server.BaseHTTPRequestHandler):
             provider = d.get("provider", "gemini")
             input_key = d.get("api_key", "").strip()
             model = d.get("model", "").strip()
-            
+            slot = int(d.get("key_slot", 1))
+
             cfg = read_config()
             key_to_use = input_key
+
             if not key_to_use or "•" in key_to_use:
                 if provider == "gemini":
-                    key_to_use = cfg.get("gemini_api_key", "")
+                    key_to_use = cfg.get("gemini_api_key_2" if slot == 2 else "gemini_api_key", "")
+                elif provider == "nvidia":
+                    key_to_use = cfg.get("nvidia_api_key_2" if slot == 2 else "nvidia_api_key", "")
                 else:
                     keys = cfg.get("groq_api_keys", [])
-                    key_to_use = keys[0] if keys else ""
-            
+                    key_to_use = keys[slot - 1] if len(keys) >= slot else (keys[0] if keys else "")
+
             if not key_to_use:
-                return self._json({"ok": False, "error": f"No {provider.title()} API key provided."})
-                
+                return self._json({"ok": False, "error": f"No {provider.title()} Key #{slot} provided."})
+
             if not model:
-                model = cfg.get("gemini_model" if provider == "gemini" else "groq_model", "")
-                
+                if provider == "gemini":
+                    model = cfg.get("gemini_model", "gemini-2.5-flash")
+                elif provider == "nvidia":
+                    model = cfg.get("nvidia_model", "minimaxai/minimax-m3.1-flash")
+                else:
+                    model = cfg.get("groq_model", "llama-3.3-70b-versatile")
+
             t0 = time.time()
             try:
                 import tinc_client
                 if provider == "gemini":
-                    test_cfg = {"gemini_api_key": key_to_use, "gemini_model": model}
-                    res = tinc_client._gemini_chat([{"role": "user", "content": "Ping test, respond only with OK"}], test_cfg, web_search=False)
+                    res = tinc_client._gemini_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, web_search=False)
+                elif provider == "nvidia":
+                    res = tinc_client._nvidia_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model)
                 else:
                     res = tinc_client._groq_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model)
                 latency = int((time.time() - t0) * 1000)
