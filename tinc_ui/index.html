@@ -1259,8 +1259,8 @@ $('btn-save-ai').onclick = async () => {
   const web = $('ai-web').checked;
   const is_code = $('ai-code').checked;
   const clip_suffix = $('ai-clipboard').checked ? $('ai-clip-suffix').value.trim() : '';
-  const old_suffix = $('ai-old-suffix').value.trim() || null;
-  const old_clip_suffix = $('ai-old-clip-suffix').value.trim() || null;
+  const old_suffix = $('ai-old-suffix').value.trim() || '';
+  const old_clip_suffix = $('ai-old-clip-suffix').value.trim() || '';
 
   if (!suffix || !prompt) {
     return toast('Both Suffix and System Prompt are required', 'err');

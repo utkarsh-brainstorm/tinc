@@ -47,6 +47,27 @@ HOST = "127.0.0.1"
 PORT = 9876
 
 
+def clean_str(val) -> str:
+    """Safely convert any JSON/string value to a stripped string, handling None/null gracefully."""
+    return str(val).strip() if val is not None else ""
+
+
+def open_browser(url: str) -> None:
+    """Open URL in default browser silently, suppressing browser zygote/stderr noise."""
+    try:
+        subprocess.Popen(
+            ["xdg-open", url],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+
 # ─── Backups ──────────────────────────────────────────────────────────────────
 
 def backup_file(filepath: str) -> None:
@@ -405,297 +426,306 @@ class H(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _body(self):
-        n = int(self.headers.get("Content-Length", 0))
-        return json.loads(self.rfile.read(n)) if n else {}
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            return json.loads(self.rfile.read(n)) if n else {}
+        except Exception:
+            return {}
 
     def do_GET(self):
-        p = urllib.parse.urlparse(self.path).path
-        query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        try:
+            p = urllib.parse.urlparse(self.path).path
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
 
-        if p in ("/", "/index.html"):
-            return self._file(os.path.join(UI_DIR, "index.html"), "text/html")
+            if p in ("/", "/index.html"):
+                return self._file(os.path.join(UI_DIR, "index.html"), "text/html")
 
-        if p == "/api/config":
-            cfg = read_config()
-            gk1 = cfg.get("gemini_api_key", "")
-            gk2 = cfg.get("gemini_api_key_2", "")
-            nk1 = cfg.get("nvidia_api_key", "")
-            nk2 = cfg.get("nvidia_api_key_2", "")
-            groq_keys = cfg.get("groq_api_keys", [])
+            if p == "/api/config":
+                cfg = read_config()
+                gk1 = cfg.get("gemini_api_key", "")
+                gk2 = cfg.get("gemini_api_key_2", "")
+                nk1 = cfg.get("nvidia_api_key", "")
+                nk2 = cfg.get("nvidia_api_key_2", "")
+                groq_keys = cfg.get("groq_api_keys", [])
 
-            return self._json({
-                "gemini_api_key":   mask(gk1),
-                "gemini_api_key_2": mask(gk2),
-                "gemini_model":     cfg.get("gemini_model", "gemini-2.5-flash"),
-                "has_gemini":       bool(gk1.strip() or gk2.strip()),
-                "gemini_key_count": sum(1 for k in [gk1, gk2] if k.strip()),
+                return self._json({
+                    "gemini_api_key":   mask(gk1),
+                    "gemini_api_key_2": mask(gk2),
+                    "gemini_model":     cfg.get("gemini_model", "gemini-2.5-flash"),
+                    "has_gemini":       bool(clean_str(gk1) or clean_str(gk2)),
+                    "gemini_key_count": sum(1 for k in [gk1, gk2] if clean_str(k)),
 
-                "nvidia_api_key":   mask(nk1),
-                "nvidia_api_key_2": mask(nk2),
-                "nvidia_model":     cfg.get("nvidia_model", "minimaxai/minimax-m3.1-flash"),
-                "has_nvidia":       bool(nk1.strip() or nk2.strip()),
-                "nvidia_key_count": sum(1 for k in [nk1, nk2] if k.strip()),
+                    "nvidia_api_key":   mask(nk1),
+                    "nvidia_api_key_2": mask(nk2),
+                    "nvidia_model":     cfg.get("nvidia_model", "minimaxai/minimax-m3.1-flash"),
+                    "has_nvidia":       bool(clean_str(nk1) or clean_str(nk2)),
+                    "nvidia_key_count": sum(1 for k in [nk1, nk2] if clean_str(k)),
 
-                "groq_api_keys":    [mask(k) for k in groq_keys],
-                "groq_model":       cfg.get("groq_model", "llama-3.3-70b-versatile"),
-                "groq_key_count":   len(groq_keys),
-                "max_tokens":       int(cfg.get("max_tokens", 16384)),
-            })
+                    "groq_api_keys":    [mask(k) for k in groq_keys],
+                    "groq_model":       cfg.get("groq_model", "llama-3.3-70b-versatile"),
+                    "groq_key_count":   len(groq_keys),
+                    "max_tokens":       int(cfg.get("max_tokens", 16384)),
+                })
 
-        if p == "/api/prompts":
-            return self._json({"prompts": extract_prompts_from_router()})
+            if p == "/api/prompts":
+                return self._json({"prompts": extract_prompts_from_router()})
 
-        if p == "/api/shortcuts":
-            return self._json({"shortcuts": extract_shortcuts_from_yml()})
+            if p == "/api/shortcuts":
+                return self._json({"shortcuts": extract_shortcuts_from_yml()})
 
-        if p == "/api/ai-shortcuts":
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("ai_router", AI_ROUTER)
-            ai_router = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(ai_router)
-            
-            commands = {}
-            for suf, (mode, web, clip, _) in ai_router.SUFFIX_MAP.items():
-                if mode not in commands:
-                    commands[mode] = {
-                        "suffix": mode,
-                        "web": web,
-                        "clip_suffix": "",
-                        "is_code": mode in getattr(ai_router, 'CODE_MODES', set()),
-                        "prompt": getattr(ai_router, 'SYSTEM_PROMPTS', {}).get(mode, "")
-                    }
-                if clip:
-                    commands[mode]["clip_suffix"] = suf
-                    
-            return self._json({"ai_shortcuts": list(commands.values())})
+            if p == "/api/ai-shortcuts":
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("ai_router", AI_ROUTER)
+                ai_router = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(ai_router)
+                
+                commands = {}
+                for suf, (mode, web, clip, _) in ai_router.SUFFIX_MAP.items():
+                    if mode not in commands:
+                        commands[mode] = {
+                            "suffix": mode,
+                            "web": web,
+                            "clip_suffix": "",
+                            "is_code": mode in getattr(ai_router, 'CODE_MODES', set()),
+                            "prompt": getattr(ai_router, 'SYSTEM_PROMPTS', {}).get(mode, "")
+                        }
+                    if clip:
+                        commands[mode]["clip_suffix"] = suf
+                        
+                return self._json({"ai_shortcuts": list(commands.values())})
 
-        if p == "/api/tinc-yml":
-            return self._json({"content": read_file(TINC_YML)})
+            if p == "/api/tinc-yml":
+                return self._json({"content": read_file(TINC_YML)})
 
-        if p == "/api/espanso-cfg":
-            return self._json({"content": read_file(ESPANSO_CFG)})
+            if p == "/api/espanso-cfg":
+                return self._json({"content": read_file(ESPANSO_CFG)})
 
-        if p == "/api/ai-router-src":
-            return self._json({"content": read_file(AI_ROUTER)})
-            
-        if p == "/api/backups":
-            filename = query.get("file", [""])[0]
-            if filename not in ["config.json", "tinc.yml", "default.yml", "ai_router.py"]:
-                return self._json({"error": "Invalid file"}, 400)
-            return self._json({"backups": get_backups(filename)})
+            if p == "/api/ai-router-src":
+                return self._json({"content": read_file(AI_ROUTER)})
+                
+            if p == "/api/backups":
+                filename = query.get("file", [""])[0]
+                if filename not in ["config.json", "tinc.yml", "default.yml", "ai_router.py"]:
+                    return self._json({"error": "Invalid file"}, 400)
+                return self._json({"backups": get_backups(filename)})
 
-        if p == "/api/espanso/status":
-            r = espanso_run(["status"])
-            return self._json({"running": "running" in r["out"].lower(), "out": r["out"]})
+            if p == "/api/espanso/status":
+                r = espanso_run(["status"])
+                return self._json({"running": "running" in r["out"].lower(), "out": r["out"]})
 
-        if p == "/api/logs":
-            return self._json({
-                "stdout": self._tail("/tmp/tinc_worker.out"),
-                "stderr": self._tail("/tmp/tinc_worker.err"),
-            })
+            if p == "/api/logs":
+                return self._json({
+                    "stdout": self._tail("/tmp/tinc_worker.out"),
+                    "stderr": self._tail("/tmp/tinc_worker.err"),
+                })
 
-        if p.startswith("/api/"):
-            return self._json({"error": "not found"}, 404)
+            if p.startswith("/api/"):
+                return self._json({"error": "not found"}, 404)
 
-        # static fallback
-        fp = os.path.join(UI_DIR, p.lstrip("/"))
-        if os.path.isfile(fp):
-            ct = {"css": "text/css", "js": "application/javascript", "png": "image/png", "jpg": "image/jpeg"}.get(fp.rsplit(".", 1)[-1], "text/plain")
-            return self._file(fp, ct)
-        self._json({"error": "not found"}, 404)
+            # static fallback
+            fp = os.path.join(UI_DIR, p.lstrip("/"))
+            if os.path.isfile(fp):
+                ct = {"css": "text/css", "js": "application/javascript", "png": "image/png", "jpg": "image/jpeg"}.get(fp.rsplit(".", 1)[-1], "text/plain")
+                return self._file(fp, ct)
+            self._json({"error": "not found"}, 404)
+        except Exception as e:
+            return self._json({"error": str(e)}, 500)
 
     def do_POST(self):
-        p = urllib.parse.urlparse(self.path).path
-        d = self._body()
+        try:
+            p = urllib.parse.urlparse(self.path).path
+            d = self._body()
 
-        if p == "/api/config":
-            cfg = read_config()
+            if p == "/api/config":
+                cfg = read_config()
 
-            # Gemini Key 1 & 2
-            if "gemini_api_key" in d:
-                gk1 = d.get("gemini_api_key", "").strip()
-                if gk1 and "•" not in gk1:
-                    cfg["gemini_api_key"] = gk1
-                elif gk1 == "":
-                    cfg["gemini_api_key"] = ""
+                # Gemini Key 1 & 2
+                if "gemini_api_key" in d:
+                    gk1 = clean_str(d.get("gemini_api_key"))
+                    if gk1 and "•" not in gk1:
+                        cfg["gemini_api_key"] = gk1
+                    elif gk1 == "":
+                        cfg["gemini_api_key"] = ""
 
-            if "gemini_api_key_2" in d:
-                gk2 = d.get("gemini_api_key_2", "").strip()
-                if gk2 and "•" not in gk2:
-                    cfg["gemini_api_key_2"] = gk2
-                elif gk2 == "":
-                    cfg["gemini_api_key_2"] = ""
+                if "gemini_api_key_2" in d:
+                    gk2 = clean_str(d.get("gemini_api_key_2"))
+                    if gk2 and "•" not in gk2:
+                        cfg["gemini_api_key_2"] = gk2
+                    elif gk2 == "":
+                        cfg["gemini_api_key_2"] = ""
 
-            if "gemini_model" in d and d["gemini_model"].strip():
-                cfg["gemini_model"] = d["gemini_model"].strip()
+                if "gemini_model" in d and clean_str(d.get("gemini_model")):
+                    cfg["gemini_model"] = clean_str(d.get("gemini_model"))
 
-            # NVIDIA Key 1 & 2
-            if "nvidia_api_key" in d:
-                nk1 = d.get("nvidia_api_key", "").strip()
-                if nk1 and "•" not in nk1:
-                    cfg["nvidia_api_key"] = nk1
-                elif nk1 == "":
-                    cfg["nvidia_api_key"] = ""
+                # NVIDIA Key 1 & 2
+                if "nvidia_api_key" in d:
+                    nk1 = clean_str(d.get("nvidia_api_key"))
+                    if nk1 and "•" not in nk1:
+                        cfg["nvidia_api_key"] = nk1
+                    elif nk1 == "":
+                        cfg["nvidia_api_key"] = ""
 
-            if "nvidia_api_key_2" in d:
-                nk2 = d.get("nvidia_api_key_2", "").strip()
-                if nk2 and "•" not in nk2:
-                    cfg["nvidia_api_key_2"] = nk2
-                elif nk2 == "":
-                    cfg["nvidia_api_key_2"] = ""
+                if "nvidia_api_key_2" in d:
+                    nk2 = clean_str(d.get("nvidia_api_key_2"))
+                    if nk2 and "•" not in nk2:
+                        cfg["nvidia_api_key_2"] = nk2
+                    elif nk2 == "":
+                        cfg["nvidia_api_key_2"] = ""
 
-            if "nvidia_model" in d and d["nvidia_model"].strip():
-                cfg["nvidia_model"] = d["nvidia_model"].strip()
+                if "nvidia_model" in d and clean_str(d.get("nvidia_model")):
+                    cfg["nvidia_model"] = clean_str(d.get("nvidia_model"))
 
-            # Groq
-            if "groq_model" in d and d["groq_model"].strip():
-                cfg["groq_model"] = d["groq_model"].strip()
+                # Groq
+                if "groq_model" in d and clean_str(d.get("groq_model")):
+                    cfg["groq_model"] = clean_str(d.get("groq_model"))
 
-            if "groq_api_keys" in d:
-                old = cfg.get("groq_api_keys", [])
-                new = []
-                for i, k in enumerate(d["groq_api_keys"]):
-                    k_str = k.strip()
-                    if "•" in k_str and i < len(old):
-                        new.append(old[i])
-                    elif "•" not in k_str and k_str:
-                        new.append(k_str)
-                cfg["groq_api_keys"] = new
+                if "groq_api_keys" in d:
+                    old = cfg.get("groq_api_keys", [])
+                    new = []
+                    for i, k in enumerate(d.get("groq_api_keys") or []):
+                        k_str = clean_str(k)
+                        if "•" in k_str and i < len(old):
+                            new.append(old[i])
+                        elif "•" not in k_str and k_str:
+                            new.append(k_str)
+                    cfg["groq_api_keys"] = new
 
-            if "max_tokens" in d:
+                if "max_tokens" in d and d.get("max_tokens") is not None:
+                    try:
+                        cfg["max_tokens"] = int(d["max_tokens"])
+                    except (ValueError, TypeError):
+                        pass
+
+                write_config(cfg)
+                return self._json({"ok": True})
+
+            if p == "/api/config/test":
+                provider = clean_str(d.get("provider")) or "gemini"
+                input_key = clean_str(d.get("api_key"))
+                model = clean_str(d.get("model"))
+                slot = int(d.get("key_slot") or 1)
+
+                cfg = read_config()
+                key_to_use = input_key
+
+                if not key_to_use or "•" in key_to_use:
+                    if provider == "gemini":
+                        key_to_use = cfg.get("gemini_api_key_2" if slot == 2 else "gemini_api_key", "")
+                    elif provider == "nvidia":
+                        key_to_use = cfg.get("nvidia_api_key_2" if slot == 2 else "nvidia_api_key", "")
+                    else:
+                        keys = cfg.get("groq_api_keys", [])
+                        key_to_use = keys[slot - 1] if len(keys) >= slot else (keys[0] if keys else "")
+
+                if not key_to_use:
+                    return self._json({"ok": False, "error": f"No {provider.title()} Key #{slot} provided."})
+
+                if not model:
+                    if provider == "gemini":
+                        model = cfg.get("gemini_model", "gemini-2.5-flash")
+                    elif provider == "nvidia":
+                        model = cfg.get("nvidia_model", "minimaxai/minimax-m3.1-flash")
+                    else:
+                        model = cfg.get("groq_model", "llama-3.3-70b-versatile")
+
+                t0 = time.time()
                 try:
-                    cfg["max_tokens"] = int(d["max_tokens"])
-                except (ValueError, TypeError):
-                    pass
+                    import tinc_client
+                    max_tok = int(cfg.get("max_tokens", 16384))
+                    if provider == "gemini":
+                        res = tinc_client._gemini_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, web_search=False, max_tokens=max_tok)
+                    elif provider == "nvidia":
+                        res = tinc_client._nvidia_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, max_tokens=max_tok)
+                    else:
+                        res = tinc_client._groq_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, max_tokens=max_tok)
+                    latency = int((time.time() - t0) * 1000)
+                    return self._json({"ok": True, "latency_ms": latency, "response": (res or "").strip()[:50]})
+                except Exception as e:
+                    latency = int((time.time() - t0) * 1000)
+                    return self._json({"ok": False, "error": str(e), "latency_ms": latency})
 
-            write_config(cfg)
-            return self._json({"ok": True})
+            if p == "/api/prompts":
+                mode = clean_str(d.get("mode"))
+                prompt = clean_str(d.get("prompt"))
+                ok = write_prompt_to_router(mode, prompt)
+                return self._json({"ok": ok})
 
-        if p == "/api/config/test":
-            provider = d.get("provider", "gemini")
-            input_key = d.get("api_key", "").strip()
-            model = d.get("model", "").strip()
-            slot = int(d.get("key_slot", 1))
+            if p == "/api/ai-shortcuts/add":
+                suffix = clean_str(d.get("suffix"))
+                prompt = clean_str(d.get("prompt"))
+                web = bool(d.get("web", False))
+                is_code = bool(d.get("is_code", False))
+                clip_suffix = clean_str(d.get("clip_suffix")) or None
+                old_suffix = clean_str(d.get("old_suffix")) or None
+                old_clip_suffix = clean_str(d.get("old_clip_suffix")) or None
+                if not suffix or not prompt:
+                    return self._json({"ok": False, "error": "Suffix and prompt required"})
+                ok = add_ai_shortcut(suffix, web, prompt, is_code, clip_suffix, old_suffix, old_clip_suffix)
+                return self._json({"ok": ok})
 
-            cfg = read_config()
-            key_to_use = input_key
+            if p == "/api/ai-shortcuts/delete":
+                suffix = clean_str(d.get("suffix"))
+                clip_suffix = clean_str(d.get("clip_suffix")) or None
+                if not suffix:
+                    return self._json({"ok": False, "error": "Suffix required"})
+                ok = remove_ai_shortcut_internal(suffix, clip_suffix)
+                return self._json({"ok": ok})
 
-            if not key_to_use or "•" in key_to_use:
-                if provider == "gemini":
-                    key_to_use = cfg.get("gemini_api_key_2" if slot == 2 else "gemini_api_key", "")
-                elif provider == "nvidia":
-                    key_to_use = cfg.get("nvidia_api_key_2" if slot == 2 else "nvidia_api_key", "")
-                else:
-                    keys = cfg.get("groq_api_keys", [])
-                    key_to_use = keys[slot - 1] if len(keys) >= slot else (keys[0] if keys else "")
+            if p == "/api/shortcuts/add":
+                ok = add_shortcut_to_yml(clean_str(d.get("trigger")), clean_str(d.get("replace")))
+                return self._json({"ok": ok})
 
-            if not key_to_use:
-                return self._json({"ok": False, "error": f"No {provider.title()} Key #{slot} provided."})
+            if p == "/api/shortcuts/edit":
+                old_trigger = clean_str(d.get("old_trigger"))
+                trigger = clean_str(d.get("trigger"))
+                replace = clean_str(d.get("replace"))
+                if not trigger or not replace:
+                    return self._json({"ok": False, "error": "Trigger and replacement required"})
+                if old_trigger:
+                    delete_shortcut_from_yml(old_trigger)
+                ok = add_shortcut_to_yml(trigger, replace)
+                return self._json({"ok": ok})
 
-            if not model:
-                if provider == "gemini":
-                    model = cfg.get("gemini_model", "gemini-2.5-flash")
-                elif provider == "nvidia":
-                    model = cfg.get("nvidia_model", "minimaxai/minimax-m3.1-flash")
-                else:
-                    model = cfg.get("groq_model", "llama-3.3-70b-versatile")
+            if p == "/api/shortcuts/delete":
+                ok = delete_shortcut_from_yml(clean_str(d.get("trigger")))
+                return self._json({"ok": ok})
 
-            t0 = time.time()
-            try:
-                import tinc_client
-                max_tok = int(cfg.get("max_tokens", 16384))
-                if provider == "gemini":
-                    res = tinc_client._gemini_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, web_search=False, max_tokens=max_tok)
-                elif provider == "nvidia":
-                    res = tinc_client._nvidia_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, max_tokens=max_tok)
-                else:
-                    res = tinc_client._groq_chat([{"role": "user", "content": "Ping test, respond only with OK"}], key_to_use, model, max_tokens=max_tok)
-                latency = int((time.time() - t0) * 1000)
-                return self._json({"ok": True, "latency_ms": latency, "response": (res or "").strip()[:50]})
-            except Exception as e:
-                latency = int((time.time() - t0) * 1000)
-                return self._json({"ok": False, "error": str(e), "latency_ms": latency})
+            if p == "/api/tinc-yml":
+                backup_file(TINC_YML)
+                content = clean_str(d.get("content"))
+                write_file(TINC_YML, content)
+                sync_to_repo("tinc.yml", content)
+                return self._json({"ok": True})
 
-        if p == "/api/prompts":
-            mode = d.get("mode", "")
-            prompt = d.get("prompt", "")
-            ok = write_prompt_to_router(mode, prompt)
-            return self._json({"ok": ok})
+            if p == "/api/espanso-cfg":
+                backup_file(ESPANSO_CFG)
+                content = clean_str(d.get("content"))
+                write_file(ESPANSO_CFG, content)
+                sync_to_repo("default.yml", content)
+                return self._json({"ok": True})
 
-        if p == "/api/ai-shortcuts/add":
-            suffix = d.get("suffix", "").strip()
-            prompt = d.get("prompt", "").strip()
-            web = bool(d.get("web", False))
-            is_code = bool(d.get("is_code", False))
-            clip_suffix = d.get("clip_suffix", "").strip() or None
-            old_suffix = d.get("old_suffix", "").strip() or None
-            old_clip_suffix = d.get("old_clip_suffix", "").strip() or None
-            if not suffix or not prompt:
-                return self._json({"ok": False, "error": "Suffix and prompt required"})
-            ok = add_ai_shortcut(suffix, web, prompt, is_code, clip_suffix, old_suffix, old_clip_suffix)
-            return self._json({"ok": ok})
+            if p == "/api/ai-router-src":
+                backup_file(AI_ROUTER)
+                content = clean_str(d.get("content"))
+                write_file(AI_ROUTER, content)
+                sync_to_repo("ai_router.py", content)
+                return self._json({"ok": True})
+                
+            if p == "/api/backups/restore":
+                filename = clean_str(d.get("filename"))
+                backup_id = clean_str(d.get("backup_id"))
+                if not filename or not backup_id:
+                    return self._json({"ok": False})
+                ok = restore_backup(filename, backup_id)
+                return self._json({"ok": ok})
 
-        if p == "/api/ai-shortcuts/delete":
-            suffix = d.get("suffix", "").strip()
-            clip_suffix = d.get("clip_suffix", "").strip() or None
-            if not suffix:
-                return self._json({"ok": False, "error": "Suffix required"})
-            ok = remove_ai_shortcut_internal(suffix, clip_suffix)
-            return self._json({"ok": ok})
+            if p == "/api/espanso/restart":
+                r = espanso_run(["restart"])
+                return self._json(r)
 
-        if p == "/api/shortcuts/add":
-            ok = add_shortcut_to_yml(d.get("trigger", "").strip(), d.get("replace", "").strip())
-            return self._json({"ok": ok})
-
-        if p == "/api/shortcuts/edit":
-            old_trigger = d.get("old_trigger", "").strip()
-            trigger = d.get("trigger", "").strip()
-            replace = d.get("replace", "").strip()
-            if not trigger or not replace:
-                return self._json({"ok": False, "error": "Trigger and replacement required"})
-            if old_trigger:
-                delete_shortcut_from_yml(old_trigger)
-            ok = add_shortcut_to_yml(trigger, replace)
-            return self._json({"ok": ok})
-
-        if p == "/api/shortcuts/delete":
-            ok = delete_shortcut_from_yml(d.get("trigger", "").strip())
-            return self._json({"ok": ok})
-
-        if p == "/api/tinc-yml":
-            backup_file(TINC_YML)
-            content = d.get("content", "")
-            write_file(TINC_YML, content)
-            sync_to_repo("tinc.yml", content)
-            return self._json({"ok": True})
-
-        if p == "/api/espanso-cfg":
-            backup_file(ESPANSO_CFG)
-            content = d.get("content", "")
-            write_file(ESPANSO_CFG, content)
-            sync_to_repo("default.yml", content)
-            return self._json({"ok": True})
-
-        if p == "/api/ai-router-src":
-            backup_file(AI_ROUTER)
-            content = d.get("content", "")
-            write_file(AI_ROUTER, content)
-            sync_to_repo("ai_router.py", content)
-            return self._json({"ok": True})
-            
-        if p == "/api/backups/restore":
-            filename = d.get("filename", "")
-            backup_id = d.get("backup_id", "")
-            if not filename or not backup_id:
-                return self._json({"ok": False})
-            ok = restore_backup(filename, backup_id)
-            return self._json({"ok": ok})
-
-        if p == "/api/espanso/restart":
-            r = espanso_run(["restart"])
-            return self._json(r)
-
-        self._json({"error": "not found"}, 404)
+            self._json({"error": "not found"}, 404)
+        except Exception as e:
+            return self._json({"ok": False, "error": str(e)}, 500)
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -730,7 +760,7 @@ def main():
     url = f"http://{HOST}:{PORT}"
     print(f"\033[1m Tinc Control Panel → {url}\033[0m")
     print(" Press Ctrl+C to stop.\n")
-    threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    threading.Timer(0.5, lambda: open_browser(url)).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
